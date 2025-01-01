@@ -260,11 +260,11 @@ class Transformer():
           if self.mode == "b":
               model_config.model_type = 'b'
               model2 = ClassifierI(model_config)
-              model2.load_state_dict(torch.load("classi/model_b", map_location=self.device, weights_only=True))
+              model2.load_state_dict(torch.load("/content/Phaseek/model_b", map_location=self.device, weights_only=True))
           else:
               model_config.model_type = 'c'
               model2 = ClassifierI(model_config)
-              model2.load_state_dict(torch.load("classi/model_c", map_location=self.device, weights_only=True))
+              model2.load_state_dict(torch.load("/content/Phaseek/model_c", map_location=self.device, weights_only=True))
           model2.to(device)
           return model2
 

@@ -14,7 +14,7 @@ else:
   device = torch.device("cpu")
 
 chars = "ACDEFGHIKLMNPQRSTVWY"
-tokenizer = Tokenizer.from_file("classi/Trained_BPE2.json")
+tokenizer = Tokenizer.from_file("/content/Phaseek/Trained_BPE2.json")
 tokenizer.model_max_length = 256
 
 

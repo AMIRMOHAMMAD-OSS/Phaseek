@@ -1,6 +1,6 @@
 import pickle
 class XGBoost():
   def XGM():
-    with open('classi/xgb_model (1).pkl', 'rb') as f:
+    with open('/content/Phaseek/xgb_model (1).pkl', 'rb') as f:
       clf = pickle.load(f)
     return clf

@@ -92,18 +92,8 @@ def main():
 
             scores = list(map(lambda x: d(Score1(x, Sc1, L, n), u), range(1, n + 1)))
             scores = [float(score[0]) if isinstance(score, np.ndarray) else float(score) for score in scores]
-
-            below_threshold = [min(score, 0.5) for score in scores]
-            above_threshold = [score - 0.5 if score > 0.5 else 0.0 for score in scores]
-            y = list(range(len(scores)))
-
-            fig = make_subplots(rows=1, cols=1, shared_xaxes=True, shared_yaxes=True, vertical_spacing=0.02)
-            fig.add_trace(go.Bar(x=y, y=below_threshold, marker_color="lightblue", name='Below Threshold', width=0.6))
-            fig.add_trace(go.Bar(x=y, y=above_threshold, marker_color="lightgreen", name='Above Threshold', base=below_threshold, width=0.6))
-            fig.add_trace(go.Scatter(x=[0, len(scores) - 1], y=[0.5, 0.5], mode='lines', line=dict(color='black', dash='dash')))
-            fig.update_layout(height=800, width=1700, title_text="LLPS Prediction Plot")
-
             score = SCORE(scores, u)
+            pd.DataFrame(scores).to_csv("/content/Phaseek/scores.csv")
             print(f"Score: {score}")
 
     elif Fasta_file and os.path.exists(Fasta_file):

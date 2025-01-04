@@ -93,7 +93,7 @@ def main():
             scores = list(map(lambda x: d(Score1(x, Sc1, L, n), u), range(1, n + 1)))
             scores = [float(score[0]) if isinstance(score, np.ndarray) else float(score) for score in scores]
             score = SCORE(scores, u)
-            pd.DataFrame(scores).to_csv("/content/Phaseek/scores.csv")
+            pd.DataFrame({"scores":scores,"seq":list(Sequence)}).to_csv("/content/Phaseek/scores.csv")
             print(f"Score: {score}")
 
     elif Fasta_file and os.path.exists(Fasta_file):

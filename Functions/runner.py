@@ -85,7 +85,6 @@ def main():
       os.makedirs('/content/Phaseek/Results/'+directory+"/"+ID, exist_ok=True)
         
     if Sequence != None and Sequence != "" and ".fasta" not in Sequence:
-        print("LLL")
         Sequence = edit(Sequence)
         k = max(5, min(50, int(np.ceil(0.1 * len(Sequence)))))
         L = k // 2
@@ -107,7 +106,6 @@ def main():
             print(f"Score: {score}")
 
     elif Sequence!= None and os.path.exists(Sequence) and ".fasta" in Sequence:
-        print("pp")
         fasta_data = [(str(record.id), edit(str(record.seq))) for record in SeqIO.parse(Sequence, "fasta")]
         fasta_data = fasta_data[:End_sequence]
         results = {"id":[i[0] for i in fasta_data] , "seq":[i[1] for i in fasta_data], "LLPS_score":[],"Residue-level score":[]}

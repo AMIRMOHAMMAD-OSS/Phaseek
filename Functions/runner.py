@@ -79,6 +79,7 @@ def main():
     Fasta_file = args.fasta_file
 
     if Sequence != None and Sequence != "":
+        print("LLL")
         Sequence = edit(Sequence)
         k = max(5, min(50, int(np.ceil(0.1 * len(Sequence)))))
         L = k // 2

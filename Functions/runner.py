@@ -112,9 +112,9 @@ def main():
                 Sc = SW(S)
                 Sc1 = np.concatenate(Sc) if len(Sc) > 1 else Sc[0]
                 if n<= 512:
-                  u = model.predict_proba([Sequence])[0][0]
+                  u = model.predict_proba([sequence])[0][0]
                 else:
-                  u = model.predict_proba([Sequence])
+                  u = model.predict_proba([sequence])
                 scores = list(map(lambda x: d(Score1(x, Sc1, L, n), u), range(1, n + 1)))
                 scores = [float(score[0]) if isinstance(score, np.ndarray) else float(score) for score in scores]
                 score = SCORE(scores, u)

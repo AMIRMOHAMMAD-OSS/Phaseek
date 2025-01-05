@@ -102,8 +102,7 @@ def main():
     elif Fasta_file and os.path.exists(Fasta_file):
         fasta_data = [(str(record.id), edit(str(record.seq))) for record in SeqIO.parse(Fasta_file, "fasta")]
         fasta_data = fasta_data[:End_sequence]
-
-        results = []
+        results = {"id":[i[0] for i in fasta_data] , "seq":[i[1] for i in fasta_data], "LLPS_score":[],"Residue-level score":[]}
         for sequence_id, sequence in tqdm(fasta_data):
             try:
                 k = max(5, min(50, int(np.ceil(0.1 * len(sequence)))))
@@ -112,13 +111,19 @@ def main():
                 S = [sequence[i:i + L] for i in range(len(sequence) - L + 1)]
                 Sc = SW(S)
                 Sc1 = np.concatenate(Sc) if len(Sc) > 1 else Sc[0]
-                u = model.predict_proba([sequence])[0][0]
+                if n<= 512:
+                  u = model.predict_proba([Sequence])[0][0]
+                else:
+                  u = model.predict_proba([Sequence])
                 scores = list(map(lambda x: d(Score1(x, Sc1, L, n), u), range(1, n + 1)))
                 scores = [float(score[0]) if isinstance(score, np.ndarray) else float(score) for score in scores]
                 score = SCORE(scores, u)
-                results.append((sequence_id, score, scores))
+                results["score"].append(score)
+                results["Residue-level score"].append(scores)
             except Exception as e:
-                results.append((sequence_id, None, None))
+                results["score"].append(None)
+                results["Residue-level score"].append(None)
+        pd.DataFrame(results).to_csv("/content/Phaseek/LLPS_prediction_results.csv")
 
         print("Analysis complete.")
 

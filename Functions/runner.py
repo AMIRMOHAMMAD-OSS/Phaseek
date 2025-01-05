@@ -99,11 +99,12 @@ def main():
             pd.DataFrame({"scores":scores,"seq":list(Sequence)}).to_csv("/content/Phaseek/scores.csv")
             print(f"Score: {score}")
 
-    elif Fasta_file and os.path.exists(Fasta_file):
+    elif Fasta_file!= None and os.path.exists(Fasta_file):
+        print("pp")
         fasta_data = [(str(record.id), edit(str(record.seq))) for record in SeqIO.parse(Fasta_file, "fasta")]
         fasta_data = fasta_data[:End_sequence]
         results = {"id":[i[0] for i in fasta_data] , "seq":[i[1] for i in fasta_data], "LLPS_score":[],"Residue-level score":[]}
-        for sequence_id, sequence in tqdm(fasta_data):
+        for sequence in tqdm(results["seq"]):
             try:
                 k = max(5, min(50, int(np.ceil(0.1 * len(sequence)))))
                 L = k // 2

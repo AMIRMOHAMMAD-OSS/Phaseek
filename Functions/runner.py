@@ -117,10 +117,10 @@ def main():
                 scores = list(map(lambda x: d(Score1(x, Sc1, L, n), u), range(1, n + 1)))
                 scores = [float(score[0]) if isinstance(score, np.ndarray) else float(score) for score in scores]
                 score = SCORE(scores, u)
-                results["score"].append(score)
+                results["LLPS_score"].append(score)
                 results["Residue-level score"].append(scores)
             except Exception as e:
-                results["score"].append(None)
+                results["LLPS_score"].append(None)
                 results["Residue-level score"].append(None)
         pd.DataFrame(results).to_csv("/content/Phaseek/LLPS_prediction_results.csv")
 

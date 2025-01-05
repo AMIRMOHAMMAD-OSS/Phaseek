@@ -70,15 +70,12 @@ def main():
     parser.add_argument("--directory", type=str, help="Directory for output files.")
     parser.add_argument("--end_sequence", type=int, default=500, help="Endpoint for scoring.")
     parser.add_argument("--plot", type=bool, default=True, help="Whether to plot results.")
-    parser.add_argument("--fasta_file", type=str, help="Path to the FASTA file.")
     args = parser.parse_args()
 
     Sequence = args.sequence
     End_sequence = args.end_sequence
     Plot = args.plot
-    Fasta_file = args.fasta_file
-
-    if Sequence != None and Sequence != "":
+    if Sequence != None and Sequence != "" and ".fasta" not in Sequence:
         print("LLL")
         Sequence = edit(Sequence)
         k = max(5, min(50, int(np.ceil(0.1 * len(Sequence)))))
@@ -100,9 +97,9 @@ def main():
             pd.DataFrame({"scores":scores,"seq":list(Sequence)}).to_csv("/content/Phaseek/scores.csv")
             print(f"Score: {score}")
 
-    elif Fasta_file!= None and os.path.exists(Fasta_file):
+    elif Sequence!= None and os.path.exists(Sequence) and ".fasta" in Sequence:
         print("pp")
-        fasta_data = [(str(record.id), edit(str(record.seq))) for record in SeqIO.parse(Fasta_file, "fasta")]
+        fasta_data = [(str(record.id), edit(str(record.seq))) for record in SeqIO.parse(Sequence, "fasta")]
         fasta_data = fasta_data[:End_sequence]
         results = {"id":[i[0] for i in fasta_data] , "seq":[i[1] for i in fasta_data], "LLPS_score":[],"Residue-level score":[]}
         for sequence in tqdm(results["seq"]):

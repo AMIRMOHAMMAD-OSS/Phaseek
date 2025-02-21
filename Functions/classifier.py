@@ -8,13 +8,13 @@ from tokenizers import Tokenizer
 from Configue import CfgNode
 
 
-if torch.cuda.is_available():
+if torch.cuda.is_available() and False:
   device = torch.device("cuda")
 else:
   device = torch.device("cpu")
 
 chars = "ACDEFGHIKLMNPQRSTVWY"
-tokenizer = Tokenizer.from_file("/content/Phaseek/Trained_BPE2.json")
+tokenizer = Tokenizer.from_file("../Trained_BPE2.json")
 tokenizer.model_max_length = 256
 
 
@@ -260,11 +260,11 @@ class Transformer():
           if self.mode == "b":
               model_config.model_type = 'b'
               model2 = ClassifierI(model_config)
-              model2.load_state_dict(torch.load("/content/Phaseek/model_b", map_location=self.device, weights_only=True))
+              model2.load_state_dict(torch.load("../model_b", map_location=self.device, weights_only=True))
           else:
               model_config.model_type = 'c'
               model2 = ClassifierI(model_config)
-              model2.load_state_dict(torch.load("/content/Phaseek/model_c", map_location=self.device, weights_only=True))
+              model2.load_state_dict(torch.load("../model_c", map_location=self.device, weights_only=True))
           model2.to(device)
           return model2
 

@@ -14,7 +14,7 @@ else:
   device = torch.device("cpu")
 
 chars = "ACDEFGHIKLMNPQRSTVWY"
-tokenizer = Tokenizer.from_file("/content/Phaseek/Trained_BPE2.json")
+tokenizer = Tokenizer.from_file("../Trained_BPE2.json")
 tokenizer.model_max_length = 256
 
 
@@ -200,12 +200,12 @@ class ClassifierI(nn.Module):
         optimizer = torch.optim.AdamW(optim_groups, lr=train_config.learning_rate, betas=train_config.betas)
         return optimizer
 
-    @torch.no_grad
+    @torch.no_grad()
     def predict_proba(self,idx,j ="None"):
-      sigmoid = nn.Sigmoid()
-      soft = nn.Softmax(dim=1)
-      ny = NY()
-      si = SiLU()
+      # sigmoid = nn.Sigmoid()
+      # soft = nn.Softmax(dim=1)
+      # ny = NY()
+      # si = SiLU()
       self.eval()
       x,_ = self.forward(idx)
       if j == "None":
@@ -213,9 +213,9 @@ class ClassifierI(nn.Module):
       elif j == "soft":
         return self.soft(x)[:,0:1]
       else:
-        return sigmoid(x)[:,0:1]
+        return F.sigmoid(x)[:,0:1]
 
-    @torch.no_grad
+    @torch.no_grad()
     def predict(self,idx):
       g = torch.zeros((idx.shape[0],1))
       e = -1
@@ -251,8 +251,9 @@ class Transformer():
           self.mode = mode
           self.device = device  # Use the passed device
           self.vocab_dict = tokenizer.get_vocab()
+          self._classifier = self.create_classifier()
 
-    def classifier(self):
+    def create_classifier(self):
           device = self.device  # Use the instance's device attribute
           model_config = ClassifierI.get_default_config()
           model_config.vocab_size = 25
@@ -260,11 +261,11 @@ class Transformer():
           if self.mode == "b":
               model_config.model_type = 'b'
               model2 = ClassifierI(model_config)
-              model2.load_state_dict(torch.load("/content/Phaseek/model_b", map_location=self.device, weights_only=True))
+              model2.load_state_dict(torch.load("../model_b", map_location=self.device, weights_only=True))
           else:
               model_config.model_type = 'c'
               model2 = ClassifierI(model_config)
-              model2.load_state_dict(torch.load("/content/Phaseek/model_c", map_location=self.device, weights_only=True))
+              model2.load_state_dict(torch.load("../model_c", map_location=self.device, weights_only=True))
           model2.to(device)
           return model2
 
@@ -273,6 +274,7 @@ class Transformer():
               return [self.vocab_dict[char] for char in x]
 
           def pad_sequences(x, PAD=0, max_len=512):
+              max_len = max(len(seq) for seq in x)
               return np.array([seq + [PAD] * (max_len - len(seq)) for seq in x])
 
           encoded = list(map(encode_char, i))
@@ -310,13 +312,13 @@ class Transformer():
         l = [self.Encode([i[0][j:j+512]]) for j in range(len(i[0])-512)]
         if len(l)>700:
           L = [torch.concat(tuple(l[i*700:(i+1)*700])) for i in range(len(l)//700)] + [torch.concat(tuple(l[(len(l)//700)*700:(len(l)//700)*700+len(l)%700]))]
-          T = [self.classifier().predict_proba(i,"sig").tolist() for i in L ]
+          T = [self._classifier.predict_proba(i,"sig").tolist() for i in L ]
           return self.enhancer(np.concatenate(tuple([i for i in T])))
         else:
           t = torch.concat(tuple(l))
-          return self.enhancer(self.classifier().predict_proba(t,"sig").tolist())
+          return self.enhancer(self._classifier.predict_proba(t,"sig").tolist())
       else:
         seq = self.Encode(i)
-        U = np.array(self.classifier().predict_proba(seq,"sig").tolist())
+        U = np.array(self._classifier.predict_proba(seq,"sig").tolist())
         out = np.array(U)
         return out.reshape(len(i),1)

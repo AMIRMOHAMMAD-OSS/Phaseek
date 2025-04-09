@@ -77,12 +77,12 @@ def main():
     directory = args.directory
     ID = args.id
     Plot = args.plot 
-    if os.path.isdir('/content/Phaseek/Results') == False:
-      os.makedirs('/content/Phaseek/Results', exist_ok=True)
-    if os.path.isdir('/content/Phaseek/Results/'+directory) == False:
-      os.makedirs('/content/Phaseek/Results/'+directory, exist_ok=True)
-    if os.path.isdir('/content/Phaseek/Results/'+directory+"/"+ID) == False:
-      os.makedirs('/content/Phaseek/Results/'+directory+"/"+ID, exist_ok=True)
+    if os.path.isdir('../Results') == False:
+      os.makedirs('../Results', exist_ok=True)
+    if os.path.isdir('../Results/'+str(directory)) == False:
+      os.makedirs('../Results/'+str(directory), exist_ok=True)
+    if os.path.isdir('../Results/'+str(directory)+"/"+str(ID)) == False:
+      os.makedirs('../Results/'+str(directory)+"/"+str(ID), exist_ok=True)
         
     if Sequence != None and Sequence != "" and ".fasta" not in Sequence:
         Sequence = edit(Sequence)
@@ -102,7 +102,7 @@ def main():
             scores = list(map(lambda x: d(Score1(x, Sc1, L, n), u), range(1, n + 1)))
             scores = [float(score[0]) if isinstance(score, np.ndarray) else float(score) for score in scores]
             score = SCORE(scores, u)
-            pd.DataFrame({"scores":scores,"seq":list(Sequence)}).to_csv('/content/Phaseek/Results/'+directory+"/"+ID+"/"+"scores.csv")
+            pd.DataFrame({"scores":scores,"seq":list(Sequence)}).to_csv('../Results/'+str(directory)+"/"+str(ID)+"/"+"scores.csv")
             print(f"Score: {score}")
 
     elif Sequence!= None and os.path.exists(Sequence) and ".fasta" in Sequence:

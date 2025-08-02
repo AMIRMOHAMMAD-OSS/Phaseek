@@ -4,7 +4,7 @@
 
 2. Clone the project -> `git clone <project-clone-url>`
 
-3. Go to cloned folder; i.e -> `cd classi`
+3. Go to cloned folder; i.e -> `cd Phaseek`
 
 4. Create a virtual environment there `virtualenv .venv` or `python -m virtualenv` if did not work
 

@@ -2,7 +2,8 @@
 
 1. Install python `virtualenv` package globally if you dont have it installed (in linux distros probably you should install global packages with your package manager not pip)
 
-2. Clone the project -> `git clone <project-clone-url>`
+2. Clone the project -> `git clone <project-clone-url> ~/Phaseek
+`
 
 3. Go to cloned folder; i.e -> `cd Phaseek`
 

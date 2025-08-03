@@ -11,11 +11,14 @@
 
 5. Activate the virtual environment `source .venv/bin/activate` (Linux & Mac)
 
-6. Run `runner.py` with desired values
+6. Instal the required packages `pip install -r requirements.txt`
 
+7. Run the `Function/runner.py`
+
+   
 **Example:**
 
 ```shell
-python runner.py --sequence "MASNDYTQQATQSYGAYPTQPGQGYSQQSSQPYGQQSYSGYSQSTDTSGYGQSSYSSYGQSQNTGYGTQSTPQGYGSTGGYGSSQSSQSSYGQQSSYPGYGQQPAPSSTSGSYGSSSQSSSYGQPQSGSYSQQPSYGGQQQSYGQQQSYNPPQGYGQQNQYNSSSGGGGGGGGGGYGSGRGKGGKGLGGKGLGKGGAKRHRK" --id test_sequence --directory test_results
+python Function/runner.py --sequence "MASNDYTQQATQSYGAYPTQPGQGYSQQSSQPYGQQSYSGYSQSTDTSGYGQSSYSSYGQSQNTGYGTQSTPQGYGSTGGYGSSQSSQSSYGQQSSYPGYGQQPAPSSTSGSYGSSSQSSSYGQPQSGSYSQQPSYGGQQQSYGQQQSYNPPQGYGQQNQYNSSSGGGGGGGGGGYGSGRGKGGKGLGGKGLGKGGAKRHRK" --id test_sequence --directory test_results
 
 ```

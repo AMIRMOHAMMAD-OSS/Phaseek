@@ -1,6 +1,6 @@
 [![Colab](https://img.shields.io/badge/COLAB-red?style=for-the-badge&logo=googlecolab)]( https://colab.research.google.com/gist/AMIRMOHAMMAD-OSS/22f560f374f08786c6c5992887cb7ca7/phaseek.ipynb)
 
-
+<a href="https://example.com"><img src="https://img.shields.io/badge/awesome-purple" alt="awesome"/></a>
 
 
 **Follow these steps to test:**

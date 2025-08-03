@@ -1,6 +1,9 @@
-[![Colab](https://img.shields.io/badge/COLAB-red?style=for-the-badge&logo=googlecolab)]( https://colab.research.google.com/gist/AMIRMOHAMMAD-OSS/22f560f374f08786c6c5992887cb7ca7/phaseek.ipynb)
-
-[![HuggingFace](https://img.shields.io/badge/HUGGINGFACE-gray?style=for-the-badge&logo=huggingface)]([https://huggingface.co/yourmodel](https://huggingface.co/AmirMMH/Phaseek))
+<p align="center">
+  <a href="https://doi.org/your-paper"><img src="https://img.shields.io/badge/PAPER-green?style=for-the-badge" alt="Paper"></a>
+  <a href="https://github.com/yourrepo"><img src="https://img.shields.io/badge/GITHUB-000000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
+  <a href="https://huggingface.co/yourmodel"><img src="https://img.shields.io/badge/HUGGINGFACE-gray?style=for-the-badge&logo=huggingface" alt="HuggingFace"></a>
+  <a href="https://colab.research.google.com/your-notebook"><img src="https://img.shields.io/badge/COLAB-red?style=for-the-badge&logo=googlecolab" alt="Colab"></a>
+</p>
 
 
 **Follow these steps to test:**

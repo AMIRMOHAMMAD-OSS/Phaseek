@@ -261,11 +261,11 @@ class Transformer():
           if self.mode == "b":
               model_config.model_type = 'b'
               model2 = ClassifierI(model_config)
-              model2.load_state_dict(torch.load("../model/Core_model_860k_10_FEGS_features", map_location=self.device, weights_only=True))
+              model2.load_state_dict(torch.load("../model/Core_model_860k_10_FEGS_features", map_location=self.device, weights_only=False))
           else:
               model_config.model_type = 'c'
               model2 = ClassifierI(model_config)
-              model2.load_state_dict(torch.load("../model/Core_model_1_5M_10_FEGS_features", map_location=self.device, weights_only=True))
+              model2.load_state_dict(torch.load("../model/Core_model_1_5M_10_FEGS_features", map_location=self.device, weights_only=False))
           model2.to(device)
           return model2
 

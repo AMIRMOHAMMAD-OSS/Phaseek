@@ -1,4 +1,4 @@
-![VAE Structure](Picture9.svg)
+![VAE Structure](Picture10.svg)
 
 
 

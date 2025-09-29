@@ -51,10 +51,10 @@ python Functions/runner.py \
 - **Model file path:** If running from `Functions/`, make sure the model path in `XGBoost.py` points to `../model/xgb_model.pkl`.
 
 ## Key Features
-- 🔬 **Single or batch scoring** from plain sequences or FASTA files  
-- 🎯 **Custom range** analysis via `End_Sequence`  
-- ⚡ **Lightweight & fast**; Colab support for zero-setup runs  
-- 🔗 **Ecosystem ready** with a HuggingFace model for integration
+-  **Single or batch scoring** from plain sequences or FASTA files  
+-  **Custom range** analysis via `End_Sequence`  
+-  **Lightweight & fast**; Colab support for zero-setup runs  
+-  **Ecosystem ready** with a HuggingFace model for integration
 
 ## Contribution
 Contributions are welcome! Please fork the repository and open a pull request. For larger changes, open an issue first to discuss your proposal.

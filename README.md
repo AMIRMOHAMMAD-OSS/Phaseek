@@ -1,3 +1,7 @@
+![VAE Structure](Picture4.png)
+
+
+
 <p align="center">
   <a href="https://www.biorxiv.org/content/10.1101/2025.01.27.635039v2"><img src="https://img.shields.io/badge/arxiv-green?style=for-the-badge" alt="arxiv"></a>
   <a href="https://github.com/AMIRMOHAMMAD-OSS/Phaseek"><img src="https://img.shields.io/badge/GITHUB-000000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>

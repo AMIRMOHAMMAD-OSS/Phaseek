@@ -6,7 +6,7 @@
   <a href="https://www.biorxiv.org/content/10.1101/2025.01.27.635039v2"><img src="https://img.shields.io/badge/arxiv-green?style=for-the-badge" alt="arxiv"></a>
   <a href="https://github.com/AMIRMOHAMMAD-OSS/Phaseek"><img src="https://img.shields.io/badge/GITHUB-000000?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
   <a href="https://huggingface.co/AmirMMH/Phaseek"><img src="https://img.shields.io/badge/HUGGINGFACE-gray?style=for-the-badge&logo=huggingface" alt="HuggingFace"></a>
-  <a href="[https://colab.research.google.com/gist/AMIRMOHAMMAD-OSS/22f560f374f08786c6c5992887cb7ca7/phaseek.ipynb](https://colab.research.google.com/github/AMIRMOHAMMAD-OSS/Phaseek/blob/main/phaseek.ipynb)"><img src="https://img.shields.io/badge/COLAB-red?style=for-the-badge&logo=googlecolab" alt="Colab"></a>
+  <a href="https://colab.research.google.com/github/AMIRMOHAMMAD-OSS/Phaseek/blob/main/phaseek.ipynb"><img src="https://img.shields.io/badge/COLAB-red?style=for-the-badge&logo=googlecolab" alt="Colab"></a>
 </p>
 
 

@@ -11,6 +11,15 @@
 
 # Phaseek: Liquid–Liquid Phase Separation (LLPS) Protein Scorer
 
+## Table of Contents
+- [Overview](#overview)
+- [Model Architecture](#model-architecture)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Key Features](#key-features)
+- [Contribution](#contribution)
+- [Citation](#citation)
+
 ## Overview
 **Phaseek** predicts the propensity of protein sequences to undergo **liquid–liquid phase separation (LLPS)**. It supports single-sequence scoring and batch inference from FASTA files, with options to target specific sequence ranges via the `End_Sequence` parameter.
 
@@ -18,8 +27,18 @@
 - Model on 🤗: **[HuggingFace](https://huggingface.co/AmirMMH/Phaseek)**  
 - Paper (preprint): **[bioRxiv](https://www.biorxiv.org/content/10.1101/2025.01.27.635039v2)**
 
-## Abstract
-Liquid–liquid phase separation (LLPS) underlies the formation of biomolecular condensates and is strongly influenced by protein sequence features, particularly within intrinsically disordered regions. **Phaseek** provides a lightweight, scalable predictor that scores the LLPS propensity of protein sequences. It enables rapid screening of single sequences or entire FASTA datasets while remaining easy to deploy (Colab-ready) and integrate into pipelines.
+## Model Architecture
+
+<p align="center">
+  <img src="Picture11.svg" alt="Phaseek Model Architecture" width="90%" style="vertical-align: middle;"/>
+</p>
+
+<p align="center">
+  <em>Figure: Phaseek architecture overview showing input handling, feature extraction, model core, and LLPS scoring head.</em>
+</p>
+
+> Tip: If you need the image to render outside GitHub (e.g., on PyPI), use the raw URL form:  
+> `https://raw.githubusercontent.com/AMIRMOHAMMAD-OSS/Phaseek/main/Picture11.svg`
 
 ## Installation
 
@@ -51,10 +70,10 @@ python Functions/runner.py \
 - **Model file path:** If running from `Functions/`, make sure the model path in `XGBoost.py` points to `../model/xgb_model.pkl`.
 
 ## Key Features
--  **Single or batch scoring** from plain sequences or FASTA files  
--  **Custom range** analysis via `End_Sequence`  
--  **Lightweight & fast**; Colab support for zero-setup runs  
--  **Ecosystem ready** with a HuggingFace model for integration
+- 🔬 **Single or batch scoring** from plain sequences or FASTA files  
+- 🎯 **Custom range** analysis via `End_Sequence`  
+- ⚡ **Lightweight & fast**; Colab support for zero-setup runs  
+- 🔗 **Ecosystem ready** with a HuggingFace model for integration
 
 ## Contribution
 Contributions are welcome! Please fork the repository and open a pull request. For larger changes, open an issue first to discuss your proposal.

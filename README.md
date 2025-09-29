@@ -11,15 +11,6 @@
 
 # Phaseek: Liquid–Liquid Phase Separation (LLPS) Protein Scorer
 
-## Table of Contents
-- [Overview](#overview)
-- [Abstract](#abstract)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Key Features](#key-features)
-- [Contribution](#contribution)
-- [Citation](#citation)
-
 ## Overview
 **Phaseek** predicts the propensity of protein sequences to undergo **liquid–liquid phase separation (LLPS)**. It supports single-sequence scoring and batch inference from FASTA files, with options to target specific sequence ranges via the `End_Sequence` parameter.
 

@@ -11,15 +11,6 @@
 
 # Phaseek: Liquid–Liquid Phase Separation (LLPS) Protein Scorer
 
-## Table of Contents
-- [Overview](#overview)
-- [Model Architecture](#model-architecture)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Key Features](#key-features)
-- [Contribution](#contribution)
-- [Citation](#citation)
-
 ## Overview
 **Phaseek** predicts the propensity of protein sequences to undergo **liquid–liquid phase separation (LLPS)**. It supports single-sequence scoring and batch inference from FASTA files, with options to target specific sequence ranges via the `End_Sequence` parameter.
 
@@ -70,10 +61,10 @@ python Functions/runner.py \
 - **Model file path:** If running from `Functions/`, make sure the model path in `XGBoost.py` points to `../model/xgb_model.pkl`.
 
 ## Key Features
-- 🔬 **Single or batch scoring** from plain sequences or FASTA files  
-- 🎯 **Custom range** analysis via `End_Sequence`  
-- ⚡ **Lightweight & fast**; Colab support for zero-setup runs  
-- 🔗 **Ecosystem ready** with a HuggingFace model for integration
+-  **Single or batch scoring** from plain sequences or FASTA files  
+-  **Custom range** analysis via `End_Sequence`  
+-  **Lightweight & fast**; Colab support for zero-setup runs  
+-  **Ecosystem ready** with a HuggingFace model for integration
 
 ## Contribution
 Contributions are welcome! Please fork the repository and open a pull request. For larger changes, open an issue first to discuss your proposal.

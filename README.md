@@ -9,7 +9,7 @@
   <a href="https://colab.research.google.com/github/AMIRMOHAMMAD-OSS/Phaseek/blob/main/phaseek.ipynb"><img src="https://img.shields.io/badge/Colab-Notebook-e2006a?style=for-the-badge&logo=googlecolab&logoColor=white" alt="Colab"></a>
 </p>
 
-# Phaseek: Liquid–Liquid Phase Separation (LLPS) Protein Scorer
+# Phaseek, a Liquid–Liquid Phase Separation (LLPS) Protein Scorer
 
 ## Overview
 **Phaseek** predicts the propensity of protein sequences to undergo **liquid–liquid phase separation (LLPS)**. It supports single-sequence scoring and batch inference from FASTA files, with options to target specific sequence ranges via the `End_Sequence` parameter.

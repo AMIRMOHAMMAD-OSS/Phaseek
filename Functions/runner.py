@@ -1,5 +1,3 @@
-# runner.py
-# End-to-end scoring, matching the original Colab formula and flow.
 
 import argparse
 import os
@@ -15,7 +13,6 @@ from Configue import CfgNode
 
 warnings.filterwarnings("ignore")
 
-# Optional: reproducibility
 try:
     import random
     torch.manual_seed(0); np.random.seed(0); random.seed(0)
@@ -28,7 +25,6 @@ clf = XGBoost.XGM()
 model = Transformer("c")
 
 def edit(sequence: str) -> str:
-    # Keep only canonical 20 AAs, uppercase
     return ''.join([char.upper() for char in sequence if char in "ACDEFGHIKLMNPQRSTVWY"])
 
 def enh(scores):
@@ -42,11 +38,6 @@ def padd(sequence_values):
     return seq + [0.0] * (5537 - len(seq))
 
 def SCORE(P, U):
-    """
-    P: residue-level scores list
-    U: scalar from model.predict_proba (sequence-level)
-    Final score = 0.3*U + 0.4*enh(P) + 0.3*xgb_prob([padded P + U])
-    """
     def scorer(seq_vals, u_val):
         vec = np.array(padd(seq_vals) + [u_val], dtype=float).reshape(1, 5538)
         prob = float(clf.predict_proba(vec)[:, 1][0])
@@ -101,8 +92,6 @@ def main():
     path_dir = os.path.join(base_res, str(directory))
     path_id = os.path.join(path_dir, str(ID))
     os.makedirs(path_id, exist_ok=True)
-
-    # Single sequence mode
     if Sequence and Sequence != "" and ".fasta" not in Sequence:
         Sequence = edit(Sequence)
         n = len(Sequence)
@@ -128,7 +117,6 @@ def main():
         pd.DataFrame({"scores": scores, "seq": list(Sequence)}).to_csv(os.path.join(path_id, "scores.csv"), index=False)
         print(f"Score: {final_score}")
 
-    # FASTA mode
     elif Sequence and os.path.exists(Sequence) and ".fasta" in Sequence:
         from Bio import SeqIO
         fasta_data = [(str(rec.id), edit(str(rec.seq))) for rec in SeqIO.parse(Sequence, "fasta")]

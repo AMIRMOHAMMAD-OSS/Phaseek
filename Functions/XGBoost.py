@@ -1,6 +1,3 @@
-# XGBoost.py
-# Simple loader (unchanged logic), path robust to script location.
-
 import os
 import pickle
 

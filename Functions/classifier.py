@@ -1,11 +1,3 @@
-# classifier.py
-# Matches original Colab behavior:
-# - Fixed-length (512) encoding
-# - 2-logit head with NY activation and mean over time
-# - predict_proba(...,"sig") => sigmoid on logits, take column 0
-# - Sliding window + enhancer aggregation for long sequences
-# - Persistent attention "bias" buffer so checkpoints load cleanly
-
 import os
 import math
 import numpy as np
@@ -16,19 +8,11 @@ from tokenizers import Tokenizer
 from Configue import CfgNode
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# Keep the 20-AA alphabet used in your pipeline
 chars = "ACDEFGHIKLMNPQRSTVWY"
-
-# We keep using the tokenizer vocab just like the original notebook
 TOKENIZER_PATH = os.path.join(os.path.dirname(__file__), "../model/Trained_BPE2.json")
 tokenizer = Tokenizer.from_file(TOKENIZER_PATH)
-tokenizer.model_max_length = 256  # not used for manual encoding, retained for parity
+tokenizer.model_max_length = 256  
 
-
-# -----------------------
-# Building blocks
-# -----------------------
 class SiLU(nn.Module):
     def forward(self, x):
         return x * torch.sigmoid(x)
@@ -49,8 +33,6 @@ class SelfAttention(nn.Module):
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
         self.attn_dropout = nn.Dropout(config.attn_pdrop)
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
-
-        # PERSISTENT buffer (matches checkpoints that saved bias in state_dict)
         self.register_buffer(
             "bias",
             torch.tril(torch.ones(config.block_size, config.block_size))
@@ -95,10 +77,6 @@ class Block(nn.Module):
         x = x + self.mlpf(self.ln_2(x))
         return x
 
-
-# -----------------------
-# Model
-# -----------------------
 class ClassifierI(nn.Module):
     @staticmethod
     def get_default_config():
@@ -107,7 +85,7 @@ class ClassifierI(nn.Module):
         C.n_layer = None
         C.n_head = None
         C.n_embd = None
-        C.vocab_size = len(chars)  # will be overridden to 25 as per your original code
+        C.vocab_size = len(chars)  
         C.max_length = 512
         C.embd_pdrop = 0.1
         C.resid_pdrop = 0.1
@@ -170,7 +148,7 @@ class ClassifierI(nn.Module):
         elif j == "soft":
             return self.soft(x)[:, 0:1]
         else:
-            return torch.sigmoid(x)[:, 0:1]  # "sig" path compatibility
+            return torch.sigmoid(x)[:, 0:1]  
 
     def forward(self, idx, targets=None):
         device_ = idx.device
@@ -188,20 +166,16 @@ class ClassifierI(nn.Module):
             loss = F.cross_entropy(logits, targets, ignore_index=-1)
         return logits, loss
 
-
-# -----------------------
-# High-level wrapper
-# -----------------------
 class Transformer():
     def __init__(self, mode):
         self.mode = mode
         self.device = device
-        self.vocab_dict = tokenizer.get_vocab()  # keep exactly as the old Colab
+        self.vocab_dict = tokenizer.get_vocab()  
         self._classifier = self.create_classifier()
 
     def create_classifier(self):
         model_config = ClassifierI.get_default_config()
-        model_config.vocab_size = 25     # unchanged from your original code
+        model_config.vocab_size = 25     
         model_config.block_size = 512
 
         if self.mode == "b":
@@ -211,7 +185,7 @@ class Transformer():
                 os.path.join(os.path.dirname(__file__), "../model/Core_model_860k_10_FEGS_features"),
                 map_location=self.device
             )
-            model.load_state_dict(state)  # persistent bias makes this clean
+            model.load_state_dict(state) 
         else:
             model_config.model_type = 'c'
             model = ClassifierI(model_config)
@@ -223,10 +197,8 @@ class Transformer():
         model.to(self.device)
         return model
 
-    # Fixed-length encoding to 512
     def Encode(self, seq_list):
         def encode_char(s):
-            # map unknowns to 0 (PAD) – matches old behavior if any char is OOV
             return [self.vocab_dict.get(ch, 0) for ch in s]
 
         PAD = 0
@@ -235,7 +207,6 @@ class Transformer():
         padded = np.array([seq[:max_len] + [PAD] * (max_len - len(seq)) for seq in encoded], dtype=np.int64)
         return torch.tensor(padded, device=self.device, dtype=torch.long)
 
-    # kept for completeness (not used by runner)
     def Decode(self, arr):
         def decode_row(row):
             ids = [j for j in row if j != 0]
@@ -265,7 +236,6 @@ class Transformer():
 
     @torch.no_grad()
     def predict_proba(self, seqs):
-        # seqs: list[str], already cleaned upstream
         if len(seqs[0]) > 512:
             windows = [self.Encode([seqs[0][j:j + 512]]) for j in range(len(seqs[0]) - 512)]
             if len(windows) > 700:

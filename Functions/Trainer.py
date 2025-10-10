@@ -1,87 +1,124 @@
-import os
-import sys
-import time
-import math
-import json
-import pickle
-import random
-import shutil
-import zipfile
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
-from collections import defaultdict
-from ast import literal_eval
+class Trainer:
+    @staticmethod
+    def get_default_config():
+        C = CfgNode()
+        C.device = 'cuda'
+        C.num_workers = 4
+        C.max_iters = None
+        C.batch_size = 128
+        C.max_length = 512
+        C.learning_rate = 8e-4
+        C.betas = (0.9, 0.95)
+        C.weight_decay = 0.1
+        C.grad_norm_clip = 1.0
+        return C
 
-# Bioinformatics libraries
-from Bio import SeqIO, pairwise2
-from Bio.Seq import Seq
+    def __init__(self, config, model, train_dataset,val_dataset):
+        self.config = config
+        self.model = model
+        self.optimizer = None
+        self.train_dataset = train_dataset
+        self.val_dataset = val_dataset
+        self.callbacks = defaultdict(list)
+        self.device ='cuda'
+        self.model = self.model.to(self.device)
+        self.iter_num = 0
+        self.iter_time = 0.0
+        self.iter_dt = 0.0
 
-# Tokenization and Transformers
-from tokenizers import Tokenizer
-from transformers import AutoTokenizer, CanineTokenizer, CanineModel
+    def add_callback(self, onevent: str, callback):
+        self.callbacks[onevent].append(callback)
 
-# Visualization
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+    def set_callback(self, onevent: str, callback):
+        self.callbacks[onevent] = [callback]
 
-# Machine Learning
-from sklearn.preprocessing import StandardScaler as Sc
-from sklearn.decomposition import PCA
-from sklearn.model_selection import train_test_split as tts
-import torch
-import torch.nn as nn
-from torch.nn import functional as F
-from torch.utils.data.dataloader import DataLoader
+    def trigger_callbacks(self, onevent: str):
+        for callback in self.callbacks.get(onevent, []):
+            callback(self)
 
-# Utility imports
-from command_runner import command_runner
+    def run(self):
+        model, config = self.model, self.config
+        self.optimizer = model.configure_optimizers(config)
+        batch_size = self.config.batch_size
+        def get_batch(mode):
+            batch_size = 64
+            if mode == "train":
+              data = train_dataset
+              pos_train = torch.tensor(np.array([data[i:i+1,:] for i in range(data.shape[0]) if data[i,-1].item() == 1]).reshape(len([data[i:i+1,:] for i in range(data.shape[0]) if data[i,-1].item() == 1]),513))
+              neg_train = torch.tensor(np.array([data[i:i+1,:] for i in range(data.shape[0]) if data[i,-1].item() == 0]).reshape(len([data[i:i+1,:] for i in range(data.shape[0]) if data[i,-1].item() == 0]),513))
+              N = np.random.randint(batch_size)
+              ix_pos = np.random.randint(pos_train.shape[0]-N)
+              ix_neg = np.random.randint(neg_train.shape[0]-batch_size-N)
+              pos_data = pos_train[ix_pos:ix_pos+N,:]
+              neg_data = neg_train[ix_neg:ix_neg+batch_size-N,:]
+              data = torch.concat((pos_data,neg_data))
+              seq = data[:,:-1]
+              targets = torch.zeros((batch_size,1), device="cuda")
+              o = -1
+              for i in data:
+                o+=1
+                if i[-1].item() == 1:
+                  targets[o] = 1
+                #else:
+                  #targets[o][1] = 1
+            else:
+              data = val_dataset
+              ix = np.random.randint(data.shape[0]-batch_size)
+              data = data[ix:ix+batch_size,:]
+              seq = data[:,:-1]
+              targets = torch.zeros((batch_size,1), device="cuda")
+              o = -1
+              for i in data:
+                o+=1
+                if i[-1].item() == 1:
+                  targets[o] = 1
+                #else:
+                 # targets[o][1] = 1
+            targets = targets.view(batch_size,1).to("cuda")
+            seq = seq.view(batch_size,512).to("cuda")
+            return seq, targets
 
-# Load tokenizer
-tokenizer = Tokenizer.from_file("classi/Trained_BPE2.json")
-tokenizer.model_max_length = 256
-
-# Load XGBoost model
-with open('classi/xgb_model (1).pkl', 'rb') as f:
-    clf = pickle.load(f)
-
-# Prepare datasets
-def edit(sequence):
-    """Removes unwanted characters from sequences."""
-    for char in "BJOUX\Z_n\n":
-        sequence = sequence.replace(char, "")
-    return sequence
-
-def encode(sequence):
-    """Encodes a sequence into its token IDs."""
-    vocab = tokenizer.get_vocab()
-    return [vocab[char] for char in sequence]
-
-def Padding(sequences, PAD=0, max_len=512):
-    """Pads sequences to the same length."""
-    max_len = max(512, len(max(sequences, key=len)))
-    return np.array([
-        seq + [PAD] * (max_len - len(seq)) if len(seq) < max_len else seq 
-        for seq in sequences
-    ])
-
-# Load training, validation, and negative datasets
-with open("classi/training.txt", "r", encoding="utf-8") as f:
-    train_text = f.read()
-filtered_train = [seq for seq in edit(train_text).split("<|edoftext|>") if seq]
-
-with open("classi/validation.txt", "r", encoding="utf-8") as f:
-    val_text = f.read()
-filtered_val = [seq for seq in edit(val_text).split("<|edoftext|>") if seq]
-
-with open("classi/negative_dataset.txt", "r") as f:
-    neg_text = f.read()
-filtered_neg = [seq for seq in neg_text.split("\n") if seq]
-
-# Combine positive datasets and write to a FASTA file
-pos_sequences = list(set(filtered_train + filtered_val))
-with open("DrLLPS.fasta", "w") as fasta_file:
-    for idx, seq in enumerate(pos_sequences):
-        fasta_file.write(f">seq{idx}\n{seq}\n")
-
-print("Environment setup complete! ✨🍰✨")
+        @torch.no_grad
+        def cross_val():
+          model.eval()
+          out = []
+          for i in ["train","val"]:
+            losses = torch.zeros(200+1)
+            for k in range(200):
+              X,Y = get_batch(i)
+              logits,loss = model(X,Y)
+              losses[k]=loss.item()
+              out1 = losses.mean()
+            out.append(out1)
+          model.train()
+          return out
+        losses = cross_val()
+        LOSS = [losses]
+        print("\n[train loss = {k}, val loss =  {j}]\n".format(k = losses[0],j = losses[1]))
+        model.train()
+        for epoch in range(20):
+          print("[epoch {o}] \n".format(o = epoch))
+          iters = 200
+          for i in range(iters):
+            if i == 0:
+              Y = "| ="
+            elif i == iters -1 :
+              Y = "=> 100% |"
+            else:
+              if i%(int(iters/50)) == 0 :
+                Y = "="
+              else:
+                Y = ""
+            print("{y}".format(y = Y),end="")
+            x, y = get_batch("train")
+            logits, self.loss = model(x, y)
+            model.zero_grad(set_to_none=True)
+            self.loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), config.grad_norm_clip)
+            self.optimizer.step()
+          losses = cross_val()
+          LOSS.append(losses)
+          print(LOSS)
+          print("\n[train loss = {k}, val loss =  {j}]\n".format(k = losses[0],j = losses[1]))
+        PATH = "model {h}".format(h = model_config.model_type)
+        torch.save(model.state_dict(), PATH)

@@ -1,8 +1,5 @@
 # runner.py
-# End-to-end script matching original Colab logic.
-# - Same sequence cleaning to 20 AAs
-# - Same sliding-window, same Score construction
-# - Uses classifier.Transformer("c") and XGBoost.XGM()
+# End-to-end scoring, matching the original Colab formula and flow.
 
 import argparse
 import os
@@ -10,7 +7,6 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import warnings
-
 import torch
 
 from classifier import Transformer
@@ -19,7 +15,7 @@ from Configue import CfgNode
 
 warnings.filterwarnings("ignore")
 
-# Optional: lock determinism for reproducibility
+# Optional: reproducibility
 try:
     import random
     torch.manual_seed(0); np.random.seed(0); random.seed(0)
@@ -32,7 +28,7 @@ clf = XGBoost.XGM()
 model = Transformer("c")
 
 def edit(sequence: str) -> str:
-    # Keep only the canonical 20 AAs, uppercase
+    # Keep only canonical 20 AAs, uppercase
     return ''.join([char.upper() for char in sequence if char in "ACDEFGHIKLMNPQRSTVWY"])
 
 def enh(scores):
@@ -42,16 +38,14 @@ def enh(scores):
     return float(np.sum(scores * weights) / np.sum(weights))
 
 def padd(sequence_values):
-    # Pad residue-level scores out to 5537 like in the notebook
     seq = list(sequence_values)
     return seq + [0.0] * (5537 - len(seq))
 
 def SCORE(P, U):
     """
-    P: list of residue-level scores
-    U: scalar "u" from classifier.predict_proba (sequence-level)
-    Final score mixes the three terms exactly like your notebook:
-      0.3 * U + 0.4 * enh(P_without_pad) + 0.3 * xgb_prob
+    P: residue-level scores list
+    U: scalar from model.predict_proba (sequence-level)
+    Final score = 0.3*U + 0.4*enh(P) + 0.3*xgb_prob([padded P + U])
     """
     def scorer(seq_vals, u_val):
         vec = np.array(padd(seq_vals) + [u_val], dtype=float).reshape(1, 5538)
@@ -67,11 +61,6 @@ def SCORE(P, U):
         return float(scorer(P, U))
 
 def SW(sequence_chunks):
-    """
-    sequence_chunks: list of overlapping subsequences (strings)
-    Returns either a list of arrays or a single array, depending on size,
-    exactly like the original logic.
-    """
     if len(sequence_chunks) > 700:
         chunks = [sequence_chunks[i * 700:(i + 1) * 700] for i in range(len(sequence_chunks) // 700 + 1)]
         chunks = [c for c in chunks if len(c) > 0]
@@ -80,14 +69,12 @@ def SW(sequence_chunks):
         return model.predict_proba(sequence_chunks)
 
 def d(x, u):
-    # Matches your notebook's residue adjustment
     if u > 0.7:
         return x * np.exp(-1.2 * (x - u))
     else:
         return x if x > 0.7 else x
 
 def Score1(index, scores, L, n):
-    # Rolling mean with asymmetric edges, as before
     i = index - 1
     if i <= L:
         return sum(scores[:i + 1]) / (i + 1)
@@ -98,32 +85,30 @@ def Score1(index, scores, L, n):
 
 def main():
     parser = argparse.ArgumentParser(description="LLPS Analysis Script")
-    parser.add_argument("--sequence", type=str, help="Protein sequence (or .fasta path) to analyze.")
+    parser.add_argument("--sequence", type=str, help="Protein sequence or .fasta path.")
     parser.add_argument("--id", type=str, help="Protein ID.")
-    parser.add_argument("--directory", type=str, help="Directory for output files.")
-    parser.add_argument("--end_sequence", type=int, default=500, help="Endpoint for scoring (FASTA mode).")
-    parser.add_argument("--plot", type=bool, default=True, help="Whether to plot results (unused here; kept for compatibility).")
+    parser.add_argument("--directory", type=str, help="Output directory.")
+    parser.add_argument("--end_sequence", type=int, default=500, help="Endpoint for FASTA mode.")
+    parser.add_argument("--plot", type=bool, default=True, help="Plot flag (kept for compatibility).")
     args = parser.parse_args()
 
     Sequence = args.sequence
     End_sequence = args.end_sequence
-    directory = args.directory
-    ID = args.id
+    directory = args.directory or "DefaultDir"
+    ID = args.id or "DefaultID"
 
-    # Ensure results directories
     base_res = os.path.join(os.path.dirname(__file__), "../Results")
-    path_dir = os.path.join(base_res, str(directory or "DefaultDir"))
-    path_id = os.path.join(path_dir, str(ID or "DefaultID"))
+    path_dir = os.path.join(base_res, str(directory))
+    path_id = os.path.join(path_dir, str(ID))
     os.makedirs(path_id, exist_ok=True)
 
-    # ----- Single sequence mode -----
+    # Single sequence mode
     if Sequence and Sequence != "" and ".fasta" not in Sequence:
         Sequence = edit(Sequence)
         n = len(Sequence)
         k = max(5, min(50, int(np.ceil(0.1 * n))))
         L = k // 2
 
-        # Residue-level scores
         S = [Sequence[i:i + L] for i in range(n - L + 1)]
         Sc = SW(S)
         if isinstance(Sc, list):
@@ -131,22 +116,19 @@ def main():
         else:
             Sc1 = Sc if isinstance(Sc, np.ndarray) else np.array(Sc)
 
-        # Sequence-level u
         if n <= 512:
             u = float(model.predict_proba([Sequence])[0][0])
         else:
             u = float(model.predict_proba([Sequence]))
 
-        # Position-adjusted residue scores
         scores = [d(Score1(x, Sc1, L, n), u) for x in range(1, n + 1)]
         scores = [float(s[0]) if isinstance(s, (list, np.ndarray)) else float(s) for s in scores]
 
         final_score = SCORE(scores, u)
-        # Save residue scores (optional but handy)
         pd.DataFrame({"scores": scores, "seq": list(Sequence)}).to_csv(os.path.join(path_id, "scores.csv"), index=False)
         print(f"Score: {final_score}")
 
-    # ----- FASTA mode -----
+    # FASTA mode
     elif Sequence and os.path.exists(Sequence) and ".fasta" in Sequence:
         from Bio import SeqIO
         fasta_data = [(str(rec.id), edit(str(rec.seq))) for rec in SeqIO.parse(Sequence, "fasta")]
@@ -159,6 +141,7 @@ def main():
                 n = len(sequence)
                 k = max(5, min(50, int(np.ceil(0.1 * n))))
                 L = k // 2
+
                 S = [sequence[i:i + L] for i in range(n - L + 1)]
                 Sc = SW(S)
                 Sc1 = np.concatenate(Sc) if isinstance(Sc, list) else (Sc if isinstance(Sc, np.ndarray) else np.array(Sc))

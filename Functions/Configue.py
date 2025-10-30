@@ -4,6 +4,8 @@ import pickle
 import random
 import os
 import json
+import sys
+from ast import literal_eval
 
 def set_seed(seed):
     random.seed(seed)
@@ -12,7 +14,14 @@ def set_seed(seed):
     torch.cuda.manual_seed_all(seed)
 
 def setup_logging(config):
-    work_dir = config.system.work_dir
+    work_dir = getattr(config, "system", None)
+    if isinstance(work_dir, CfgNode):
+        work_dir = work_dir.work_dir
+    elif isinstance(config, CfgNode) and hasattr(config, "work_dir"):
+        work_dir = config.work_dir
+    else:
+        work_dir = "./runs"
+
     os.makedirs(work_dir, exist_ok=True)
     with open(os.path.join(work_dir, 'args.txt'), 'w') as f:
         f.write(' '.join(sys.argv))
@@ -38,23 +47,25 @@ class CfgNode:
         return "".join(parts)
 
     def to_dict(self):
-        return { k: v.to_dict() if isinstance(v, CfgNode) else v for k, v in self.__dict__.items() }
+        return {k: v.to_dict() if isinstance(v, CfgNode) else v
+                for k, v in self.__dict__.items()}
 
     def merge_from_dict(self, d):
         self.__dict__.update(d)
 
     def merge_from_args(self, args):
-
         for arg in args:
             keyval = arg.split('=')
-            assert len(keyval) == 2, "expecting each override arg to be of form --arg=value, got %s" % arg
+            assert len(keyval) == 2, \
+                f"expecting each override arg to be of form --arg=value, got {arg}"
             key, val = keyval
+
             try:
                 val = literal_eval(val)
-            except ValueError:
+            except Exception:
                 pass
 
-            assert key[:2] == '--'
+            assert key[:2] == '--', "override flags must start with --"
             key = key[2:]
             keys = key.split('.')
             obj = self
@@ -62,5 +73,5 @@ class CfgNode:
                 obj = getattr(obj, k)
             leaf_key = keys[-1]
             assert hasattr(obj, leaf_key), f"{key} is not an attribute that exists in the config"
-            print("command line overwriting config attribute %s with %s" % (key, val))
+            print(f"command line overwriting config attribute {key} with {val}")
             setattr(obj, leaf_key, val)

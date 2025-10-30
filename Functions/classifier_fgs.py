@@ -192,7 +192,7 @@ class ClassifierI(nn.Module):
         return logits, loss
 
 
-class Transformer:
+class transformer:
     def __init__(self, mode):
         self.mode = mode
         self.device = device

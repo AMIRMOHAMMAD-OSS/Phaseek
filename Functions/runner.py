@@ -148,7 +148,7 @@ def main():
     End_sequence = args.end_sequence
     directory = args.directory or "DefaultDir"
     ID = args.id or "DefaultID"
-    model = Transformer("c", use_graph_bias=bool(args.use_bias))
+    model = Transformer("c", use_graph_bias= False)
 
     base_res = os.path.join(os.path.dirname(__file__), "../Results")
     path_dir = os.path.join(base_res, str(directory))

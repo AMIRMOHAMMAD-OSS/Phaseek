@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 import warnings
 import torch
-from classifier import Transformer
+from classifier_b import Transformer
+from classifier_fgs import Transformer
+
 from XGBoost import XGBoost
 from Configue import CfgNode
 from FEGS_feature_extraction import FEGSFeatureExtractor
@@ -21,13 +23,11 @@ except Exception:
     pass
 
 clf = XGBoost.XGM()
-# OLD transformer signature: no use_graph_bias
 model = Transformer("c")
 
 ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
 
 def edit(sequence: str) -> str:
-    # keep only valid amino acids, case-insensitive
     out = []
     for ch in sequence:
         u = ch.upper()

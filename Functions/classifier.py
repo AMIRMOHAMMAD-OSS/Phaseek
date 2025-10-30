@@ -25,10 +25,7 @@ class NewGELU(nn.Module):
     def forward(self, x):
         return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) *
                                            (x + 0.044715 * torch.pow(x, 3.0))))
-
-
 class FEGSTrans(nn.Module):
-
     def __init__(self, config):
         super().__init__()
         assert config.n_embd % config.n_head == 0
@@ -46,7 +43,7 @@ class FEGSTrans(nn.Module):
         self.n_head = config.n_head
         self.n_embd = config.n_embd
         self.use_graph_bias = getattr(config, "use_graph_bias", False)
-        self.beta = nn.Parameter(torch.tensor(0.1))  # learned scalar for bias scaling
+        self.beta = nn.Parameter(torch.tensor(0.1))  # learned scalar
 
     def forward(self, x, bias_matrix=None):
         B, T, C = x.size()
@@ -58,10 +55,11 @@ class FEGSTrans(nn.Module):
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
 
         if self.use_graph_bias and bias_matrix is not None:
-            bias_matrix = bias_matrix.unsqueeze(1) if bias_matrix.ndim == 3 else bias_matrix
+            if bias_matrix.ndim == 3:
+                bias_matrix = bias_matrix.unsqueeze(1)  # (B,1,T,T)
             bias_matrix = bias_matrix[:, :, :T, :T]
-            bias_matrix = (bias_matrix - bias_matrix.mean()) / (bias_matrix.std() + 1e-6)
-            att = att + self.beta * bias_matrix
+            bm = (bias_matrix - bias_matrix.mean()) / (bias_matrix.std() + 1e-6)
+            att = att + self.beta * bm
 
         att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
         att = F.softmax(att, dim=-1)
@@ -71,7 +69,7 @@ class FEGSTrans(nn.Module):
         y = y.transpose(1, 2).contiguous().view(B, T, C)
         y = self.resid_dropout(self.c_proj(y))
         return y
-
+        
 class Block(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -79,10 +77,10 @@ class Block(nn.Module):
         self.attn = FEGSTrans(config)
         self.ln_2 = nn.LayerNorm(config.n_embd)
         self.mlp = nn.ModuleDict(dict(
-            c_fc=nn.Linear(config.n_embd, 4 * config.n_embd),
-            c_proj=nn.Linear(4 * config.n_embd, config.n_embd),
-            act=NewGELU(),
-            dropout=nn.Dropout(config.resid_pdrop),
+            c_fc   = nn.Linear(config.n_embd, 4 * config.n_embd),
+            c_proj = nn.Linear(4 * config.n_embd, config.n_embd),
+            act    = NewGELU(),
+            dropout= nn.Dropout(config.resid_pdrop),
         ))
         m = self.mlp
         self.mlpf = lambda x: m.dropout(m.c_proj(m.act(m.c_fc(x))))
@@ -105,7 +103,7 @@ class ClassifierI(nn.Module):
         C.embd_pdrop = 0.1
         C.resid_pdrop = 0.1
         C.attn_pdrop = 0.1
-        C.use_graph_bias = False  # new flag
+        C.use_graph_bias = False  
         return C
 
     def __init__(self, config):
@@ -131,11 +129,11 @@ class ClassifierI(nn.Module):
 
         self.ny = NY()
         self.transformer = nn.ModuleDict(dict(
-            wte=nn.Embedding(config.vocab_size, config.n_embd),
-            wpe=nn.Embedding(config.max_length, config.n_embd),
-            drop=nn.Dropout(config.embd_pdrop),
-            h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f=nn.LayerNorm(config.n_embd),
+            wte  = nn.Embedding(config.vocab_size, config.n_embd),
+            wpe  = nn.Embedding(config.max_length, config.n_embd),
+            drop = nn.Dropout(config.embd_pdrop),
+            h    = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+            ln_f = nn.LayerNorm(config.n_embd),
         ))
         self.classifier_head = nn.Sequential(nn.Linear(config.n_embd, 2))
         self.apply(self._init_weights)

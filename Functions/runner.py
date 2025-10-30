@@ -8,7 +8,7 @@ import torch
 from classifier import Transformer
 from XGBoost import XGBoost
 from Configue import CfgNode
-from FEGS_features_extraction import FEGSFeatureExtractor
+from FEGS_feature_extraction import FEGSFeatureExtractor
 
 warnings.filterwarnings("ignore")
 

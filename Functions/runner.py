@@ -21,39 +21,19 @@ except Exception:
     pass
 
 clf = XGBoost.XGM()
+# OLD transformer signature: no use_graph_bias
+model = Transformer("c")
 
-AA20 = "ARNDCQEGHILKMFPSTWYV"
-AA_INDEX = {aa: i for i, aa in enumerate(AA20)}
-
-def _to_device_tensor(arr, device):
-    if arr is None:
-        return None
-    t = torch.tensor(arr, dtype=torch.float32)
-    return t.to(device)
-
-def build_pair_bias_from_FEGS_SAD(seq: str) -> np.ndarray:
-
-    AAC, DPC = FEGSFeatureExtractor._SAD_static((seq, AA20))
-    T = len(seq)
-    P = np.zeros((T, T), dtype=np.float32)
-    idxs = np.array([AA_INDEX[ch] for ch in seq], dtype=int)
-    P = DPC[idxs][:, idxs] 
-    P = 0.5 * (P + P.T)
-    return P
-
-def slice_bias_for_window(bias_full, start, win):
-
-    if bias_full is None:
-        return None
-    if bias_full.ndim == 2:
-        return bias_full[start:start+win, start:start+win]
-    elif bias_full.ndim == 3:
-        return bias_full[:, start:start+win, start:start+win]
-    else:
-        raise ValueError("bias_full must be (T,T) or (H,T,T)")
+ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
 
 def edit(sequence: str) -> str:
-    return ''.join([char.upper() for char in sequence if char in "ACDEFGHIKLMNPQRSTVWY"])
+    # keep only valid amino acids, case-insensitive
+    out = []
+    for ch in sequence:
+        u = ch.upper()
+        if u in ALPHABET:
+            out.append(u)
+    return ''.join(out)
 
 def enh(scores):
     k = 50
@@ -79,11 +59,19 @@ def SCORE(P, U):
     else:
         return float(scorer(P, U))
 
+def SW(sequence_chunks):
+    if len(sequence_chunks) > 700:
+        chunks = [sequence_chunks[i * 700:(i + 1) * 700] for i in range(len(sequence_chunks) // 700 + 1)]
+        chunks = [c for c in chunks if len(c) > 0]
+        return [model.predict_proba(c) for c in chunks]
+    else:
+        return model.predict_proba(sequence_chunks)
+
 def d(x, u):
     if u > 0.7:
         return x * np.exp(-1.2 * (x - u))
     else:
-        return x if x > 0.7 else x
+        return x
 
 def Score1(index, scores, L, n):
     i = index - 1
@@ -94,107 +82,74 @@ def Score1(index, scores, L, n):
     else:
         return sum(scores[i - L:n - L + 1]) / (n - i + 1)
 
-def predict_full_sequence_with_optional_bias(model: Transformer, sequence: str, bias_full_np=None):
-
-    T = len(sequence)
-    if T <= 512:
-        bm = _to_device_tensor(bias_full_np[None, ...], model.device) if bias_full_np is not None else None
-        batch = model.Encode([sequence])
-        out = model._classifier.predict_proba(batch, "sig", bm).cpu().numpy()
-        return float(out.reshape(-1)[0])
-    preds = []
-    for start in range(T - 512 + 1):
-        window_seq = sequence[start:start + 512]
-        x = model.Encode([window_seq])  
-
-        if bias_full_np is not None:
-            bias_slice = slice_bias_for_window(bias_full_np, start, 512)
-            if bias_slice.ndim == 2:
-                bias_tensor = _to_device_tensor(bias_slice[None, ...], model.device) 
-            else:
-                bias_tensor = _to_device_tensor(bias_slice[None, ...], model.device) 
-        else:
-            bias_tensor = None
-
-        p = model._classifier.predict_proba(x, "sig", bias_tensor).cpu().numpy()
-        preds.append(p[0, 0])
-
-    return float(enh(np.array(preds)))
-
-def SW(sequence_chunks, model: Transformer):
-
-    if len(sequence_chunks) > 700:
-        chunks = [sequence_chunks[i * 700:(i + 1) * 700] for i in range(len(sequence_chunks) // 700 + 1)]
-        chunks = [c for c in chunks if len(c) > 0]
-        return [model.predict_proba(c) for c in chunks]
-    else:
-        return model.predict_proba(sequence_chunks)
-
-
 def main():
-    parser = argparse.ArgumentParser(description="LLPS Analysis Script (with optional FEGS bias)")
+    parser = argparse.ArgumentParser(description="LLPS Analysis Script")
     parser.add_argument("--sequence", type=str, help="Protein sequence or .fasta path.")
     parser.add_argument("--id", type=str, help="Protein ID.")
     parser.add_argument("--directory", type=str, help="Output directory.")
     parser.add_argument("--end_sequence", type=int, default=500, help="Endpoint for FASTA mode.")
     parser.add_argument("--plot", type=bool, default=True, help="Plot flag (kept for compatibility).")
-
-    parser.add_argument("--use_bias", action="store_true",
-                        help="If set, derives a (T,T) bias prior from FEGS SAD/DPC and feeds it into attention.")
-
     args = parser.parse_args()
 
-    SequenceArg = args.sequence
+    Sequence = args.sequence
     End_sequence = args.end_sequence
     directory = args.directory or "DefaultDir"
     ID = args.id or "DefaultID"
-    model = Transformer("c", use_graph_bias= False)
 
     base_res = os.path.join(os.path.dirname(__file__), "../Results")
     path_dir = os.path.join(base_res, str(directory))
     path_id = os.path.join(path_dir, str(ID))
     os.makedirs(path_id, exist_ok=True)
 
-    if SequenceArg and SequenceArg != "" and ".fasta" not in SequenceArg:
-        Sequence = edit(SequenceArg)
+    if Sequence and Sequence != "" and ".fasta" not in Sequence:
+        Sequence = edit(Sequence)
         n = len(Sequence)
         k = max(5, min(50, int(np.ceil(0.1 * n))))
         L = k // 2
+
         S = [Sequence[i:i + L] for i in range(n - L + 1)]
-        Sc = SW(S, model)
-        Sc1 = np.concatenate(Sc) if isinstance(Sc, list) else (Sc if isinstance(Sc, np.ndarray) else np.array(Sc))
-        #bias_np = build_pair_bias_from_FEGS_SAD(Sequence) if args.use_bias else None
-        u = predict_full_sequence_with_optional_bias(model, Sequence, bias_full_np=None)
+        Sc = SW(S)
+        if isinstance(Sc, list):
+            Sc1 = np.concatenate(Sc)
+        else:
+            Sc1 = Sc if isinstance(Sc, np.ndarray) else np.array(Sc)
+
+        if n <= 512:
+            u = float(model.predict_proba([Sequence])[0][0])
+        else:
+            u = float(model.predict_proba([Sequence]))
+
         scores = [d(Score1(x, Sc1, L, n), u) for x in range(1, n + 1)]
         scores = [float(s[0]) if isinstance(s, (list, np.ndarray)) else float(s) for s in scores]
-        final_score = SCORE(scores, u)
 
-        pd.DataFrame({"scores": scores, "seq": list(Sequence)}).to_csv(
-            os.path.join(path_id, "scores.csv"), index=False)
+        final_score = SCORE(scores, u)
+        pd.DataFrame({"scores": scores, "seq": list(Sequence)}).to_csv(os.path.join(path_id, "scores.csv"), index=False)
         print(f"Score: {final_score}")
-    elif SequenceArg and os.path.exists(SequenceArg) and ".fasta" in SequenceArg:
+
+    elif Sequence and os.path.exists(Sequence) and ".fasta" in Sequence:
         from Bio import SeqIO
-        fasta_data = [(str(rec.id), edit(str(rec.seq))) for rec in SeqIO.parse(SequenceArg, "fasta")]
+        fasta_data = [(str(rec.id), edit(str(rec.seq))) for rec in SeqIO.parse(Sequence, "fasta")]
         fasta_data = fasta_data[:End_sequence]
 
-        results = {
-            "id": [i[0] for i in fasta_data],
-            "seq": [i[1] for i in fasta_data],
-            "LLPS_score": [],
-            "Residue-level score": []
-        }
+        results = {"id": [i[0] for i in fasta_data],
+                   "seq": [i[1] for i in fasta_data],
+                   "LLPS_score": [],
+                   "Residue-level score": []}
 
-        for rec_id, sequence in tqdm(fasta_data):
+        for sequence in tqdm(results["seq"]):
             try:
                 n = len(sequence)
                 k = max(5, min(50, int(np.ceil(0.1 * n))))
                 L = k // 2
-                S = [sequence[i:i + L] for i in range(n - L + 1)]
-                Sc = SW(S, model)
-                Sc1 = np.concatenate(Sc) if isinstance(Sc, list) else (Sc if isinstance(Sc, np.ndarray) else np.array(Sc))
-                bias_np = build_pair_bias_from_FEGS_SAD(sequence) if args.use_bias else None
 
-                u = predict_full_sequence_with_optional_bias(model, sequence, bias_full_np=bias_np)
+                S = [sequence[i:i + L] for i in range(n - L + 1)]
+                Sc = SW(S)
+                Sc1 = np.concatenate(Sc) if isinstance(Sc, list) else (Sc if isinstance(Sc, np.ndarray) else np.array(Sc))
+
+                if n <= 512:
+                    u = float(model.predict_proba([sequence])[0][0])
+                else:
+                    u = float(model.predict_proba([sequence]))
 
                 scores = [d(Score1(x, Sc1, L, n), u) for x in range(1, n + 1)]
                 scores = [float(s[0]) if isinstance(s, (list, np.ndarray)) else float(s) for s in scores]

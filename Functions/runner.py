@@ -163,8 +163,8 @@ def main():
         S = [Sequence[i:i + L] for i in range(n - L + 1)]
         Sc = SW(S, model)
         Sc1 = np.concatenate(Sc) if isinstance(Sc, list) else (Sc if isinstance(Sc, np.ndarray) else np.array(Sc))
-        bias_np = build_pair_bias_from_FEGS_SAD(Sequence) if args.use_bias else None
-        u = predict_full_sequence_with_optional_bias(model, Sequence, bias_full_np=bias_np)
+        #bias_np = build_pair_bias_from_FEGS_SAD(Sequence) if args.use_bias else None
+        u = predict_full_sequence_with_optional_bias(model, Sequence, bias_full_np=None)
         scores = [d(Score1(x, Sc1, L, n), u) for x in range(1, n + 1)]
         scores = [float(s[0]) if isinstance(s, (list, np.ndarray)) else float(s) for s in scores]
         final_score = SCORE(scores, u)

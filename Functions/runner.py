@@ -22,7 +22,7 @@ except Exception:
     pass
 
 clf = XGBoost.XGM()
-model = Transformer("c")
+model = Transformer("c",use_graph_bias=False)
 
 def edit(sequence: str) -> str:
     return ''.join([char.upper() for char in sequence if char in "ACDEFGHIKLMNPQRSTVWY"])

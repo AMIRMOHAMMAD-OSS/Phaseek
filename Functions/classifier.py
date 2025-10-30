@@ -11,7 +11,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 chars = "ACDEFGHIKLMNPQRSTVWY"
 TOKENIZER_PATH = os.path.join(os.path.dirname(__file__), "../model/Trained_BPE2.json")
 tokenizer = Tokenizer.from_file(TOKENIZER_PATH)
-tokenizer.model_max_length = 256  
+tokenizer.model_max_length = 256
 
 class SiLU(nn.Module):
     def forward(self, x):
@@ -23,9 +23,12 @@ class NY(nn.Module):
 
 class NewGELU(nn.Module):
     def forward(self, x):
-        return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
+        return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) *
+                                           (x + 0.044715 * torch.pow(x, 3.0))))
 
-class SelfAttention(nn.Module):
+
+class FEGSTrans(nn.Module):
+
     def __init__(self, config):
         super().__init__()
         assert config.n_embd % config.n_head == 0
@@ -33,6 +36,7 @@ class SelfAttention(nn.Module):
         self.c_proj = nn.Linear(config.n_embd, config.n_embd)
         self.attn_dropout = nn.Dropout(config.attn_pdrop)
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
+
         self.register_buffer(
             "bias",
             torch.tril(torch.ones(config.block_size, config.block_size))
@@ -41,17 +45,28 @@ class SelfAttention(nn.Module):
 
         self.n_head = config.n_head
         self.n_embd = config.n_embd
+        self.use_graph_bias = getattr(config, "use_graph_bias", False)
+        self.beta = nn.Parameter(torch.tensor(0.1))  # learned scalar for bias scaling
 
-    def forward(self, x):
+    def forward(self, x, bias_matrix=None):
         B, T, C = x.size()
         q, k, v = self.c_attn(x).split(self.n_embd, dim=2)
         k = k.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
         q = q.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
         v = v.view(B, T, self.n_head, C // self.n_head).transpose(1, 2)
+
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
+
+        if self.use_graph_bias and bias_matrix is not None:
+            bias_matrix = bias_matrix.unsqueeze(1) if bias_matrix.ndim == 3 else bias_matrix
+            bias_matrix = bias_matrix[:, :, :T, :T]
+            bias_matrix = (bias_matrix - bias_matrix.mean()) / (bias_matrix.std() + 1e-6)
+            att = att + self.beta * bias_matrix
+
         att = att.masked_fill(self.bias[:, :, :T, :T] == 0, float("-inf"))
         att = F.softmax(att, dim=-1)
         att = self.attn_dropout(att)
+
         y = att @ v
         y = y.transpose(1, 2).contiguous().view(B, T, C)
         y = self.resid_dropout(self.c_proj(y))
@@ -61,19 +76,19 @@ class Block(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.ln_1 = nn.LayerNorm(config.n_embd)
-        self.attn = SelfAttention(config)
+        self.attn = FEGSTrans(config)
         self.ln_2 = nn.LayerNorm(config.n_embd)
         self.mlp = nn.ModuleDict(dict(
-            c_fc    = nn.Linear(config.n_embd, 4 * config.n_embd),
-            c_proj  = nn.Linear(4 * config.n_embd, config.n_embd),
-            act     = NewGELU(),
-            dropout = nn.Dropout(config.resid_pdrop),
+            c_fc=nn.Linear(config.n_embd, 4 * config.n_embd),
+            c_proj=nn.Linear(4 * config.n_embd, config.n_embd),
+            act=NewGELU(),
+            dropout=nn.Dropout(config.resid_pdrop),
         ))
         m = self.mlp
         self.mlpf = lambda x: m.dropout(m.c_proj(m.act(m.c_fc(x))))
 
-    def forward(self, x):
-        x = x + self.attn(self.ln_1(x))
+    def forward(self, x, bias_matrix=None):
+        x = x + self.attn(self.ln_1(x), bias_matrix)
         x = x + self.mlpf(self.ln_2(x))
         return x
 
@@ -85,11 +100,12 @@ class ClassifierI(nn.Module):
         C.n_layer = None
         C.n_head = None
         C.n_embd = None
-        C.vocab_size = len(chars)  
+        C.vocab_size = len(chars)
         C.max_length = 512
         C.embd_pdrop = 0.1
         C.resid_pdrop = 0.1
         C.attn_pdrop = 0.1
+        C.use_graph_bias = False  # new flag
         return C
 
     def __init__(self, config):
@@ -115,15 +131,15 @@ class ClassifierI(nn.Module):
 
         self.ny = NY()
         self.transformer = nn.ModuleDict(dict(
-            wte   = nn.Embedding(config.vocab_size, config.n_embd),
-            wpe   = nn.Embedding(config.max_length, config.n_embd),
-            drop  = nn.Dropout(config.embd_pdrop),
-            h     = nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
-            ln_f  = nn.LayerNorm(config.n_embd),
+            wte=nn.Embedding(config.vocab_size, config.n_embd),
+            wpe=nn.Embedding(config.max_length, config.n_embd),
+            drop=nn.Dropout(config.embd_pdrop),
+            h=nn.ModuleList([Block(config) for _ in range(config.n_layer)]),
+            ln_f=nn.LayerNorm(config.n_embd),
         ))
         self.classifier_head = nn.Sequential(nn.Linear(config.n_embd, 2))
-
         self.apply(self._init_weights)
+
         for pn, p in self.named_parameters():
             if pn.endswith('c_proj.weight'):
                 nn.init.normal_(p, mean=0.0, std=0.02 / math.sqrt(2 * config.n_layer))
@@ -140,17 +156,17 @@ class ClassifierI(nn.Module):
             nn.init.ones_(module.weight)
 
     @torch.no_grad()
-    def predict_proba(self, idx, j="None"):
+    def predict_proba(self, idx, j="None", bias_matrix=None):
         self.eval()
-        x, _ = self.forward(idx)
+        x, _ = self.forward(idx, bias_matrix=bias_matrix)
         if j == "None":
             return x[:, 0:1]
         elif j == "soft":
             return self.soft(x)[:, 0:1]
         else:
-            return torch.sigmoid(x)[:, 0:1]  
+            return torch.sigmoid(x)[:, 0:1]
 
-    def forward(self, idx, targets=None):
+    def forward(self, idx, targets=None, bias_matrix=None):
         device_ = idx.device
         b, t = idx.size()
         pos = torch.arange(0, t, dtype=torch.long, device=device_).unsqueeze(0)
@@ -158,7 +174,7 @@ class ClassifierI(nn.Module):
         pos_emb = self.transformer.wpe(pos)
         x = self.transformer.drop(tok_emb + pos_emb)
         for block in self.transformer.h:
-            x = block(x)
+            x = block(x, bias_matrix)
         x = self.transformer.ln_f(x)
         logits = self.ny(self.classifier_head(x)).mean(1).to(device_)
         loss = None
@@ -166,17 +182,19 @@ class ClassifierI(nn.Module):
             loss = F.cross_entropy(logits, targets, ignore_index=-1)
         return logits, loss
 
-class Transformer():
-    def __init__(self, mode):
+class Transformer:
+    def __init__(self, mode, use_graph_bias=False):
         self.mode = mode
         self.device = device
-        self.vocab_dict = tokenizer.get_vocab()  
+        self.vocab_dict = tokenizer.get_vocab()
+        self.use_graph_bias = use_graph_bias
         self._classifier = self.create_classifier()
 
     def create_classifier(self):
         model_config = ClassifierI.get_default_config()
-        model_config.vocab_size = 25     
+        model_config.vocab_size = 25
         model_config.block_size = 512
+        model_config.use_graph_bias = self.use_graph_bias
 
         if self.mode == "b":
             model_config.model_type = 'b'
@@ -185,7 +203,7 @@ class Transformer():
                 os.path.join(os.path.dirname(__file__), "../model/Core_model_860k_10_FEGS_features"),
                 map_location=self.device
             )
-            model.load_state_dict(state) 
+            model.load_state_dict(state)
         else:
             model_config.model_type = 'c'
             model = ClassifierI(model_config)
@@ -194,13 +212,13 @@ class Transformer():
                 map_location=self.device
             )
             model.load_state_dict(state)
+
         model.to(self.device)
         return model
 
     def Encode(self, seq_list):
         def encode_char(s):
             return [self.vocab_dict.get(ch, 0) for ch in s]
-
         PAD = 0
         max_len = 512
         encoded = list(map(encode_char, seq_list))
@@ -215,7 +233,6 @@ class Transformer():
                 if 1 <= j <= len(chars):
                     out.append(chars[j - 1])
             return "".join(out)
-
         H = list(map(decode_row, arr))
         G = []
         u = 0
@@ -235,21 +252,21 @@ class Transformer():
         return float(np.sum(vals * wei) / np.sum(wei))
 
     @torch.no_grad()
-    def predict_proba(self, seqs):
+    def predict_proba(self, seqs, bias_matrix=None):
         if len(seqs[0]) > 512:
             windows = [self.Encode([seqs[0][j:j + 512]]) for j in range(len(seqs[0]) - 512)]
             if len(windows) > 700:
                 chunks = [torch.cat(windows[i * 700:(i + 1) * 700]) for i in range(len(windows) // 700)]
                 if len(windows) % 700:
                     chunks.append(torch.cat(windows[(len(windows) // 700) * 700:]))
-                preds = [self._classifier.predict_proba(t, "sig").cpu().numpy() for t in chunks]
+                preds = [self._classifier.predict_proba(t, "sig", bias_matrix).cpu().numpy() for t in chunks]
                 preds = np.concatenate(preds, axis=0)
                 return self.enhancer(preds)
             else:
                 batch = torch.cat(windows)
-                preds = self._classifier.predict_proba(batch, "sig").cpu().numpy()
+                preds = self._classifier.predict_proba(batch, "sig", bias_matrix).cpu().numpy()
                 return self.enhancer(preds)
         else:
             batch = self.Encode(seqs)
-            preds = self._classifier.predict_proba(batch, "sig").cpu().numpy()
+            preds = self._classifier.predict_proba(batch, "sig", bias_matrix).cpu().numpy()
             return preds.reshape(len(seqs), 1)

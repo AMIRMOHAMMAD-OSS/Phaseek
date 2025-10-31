@@ -1,199 +1,146 @@
-import os
-import time
-import math
-import random
-from collections import defaultdict
-import numpy as np
-import torch
-import torch.nn as nn
-from torch.nn.utils import clip_grad_norm_
-from Configue import CfgNode
-from FEGS_features_extraction import FEGSFeatureExtractor
+model_cfg = Config(
+    vocab_size=vocab_size,
+    block_size=SEQ_LEN,
+    n_layer=6,
+    n_head=6,
+    n_embd=192,
+    embd_pdrop=0.1,
+    resid_pdrop=0.1,
+    attn_pdrop=0.1,
+    causal=False,
+    use_graph_bias=True
+)
 
-AA20 = "ARNDCQEGHILKMFPSTWYV"
-AA_INDEX = {aa: i for i, aa in enumerate(AA20)}
+model = TransformerClassifier(model_cfg).to(device)
+optimizer = model.configure_optimizers(lr=8e-4, betas=(0.9, 0.95), weight_decay=0.1)
+EPOCHS = 50
+total_train_steps = EPOCHS * max(1, math.ceil(len(train_loader)))
+warmup_steps = max(10, int(0.05 * total_train_steps))
+def lr_lambda(step):
+    if step < warmup_steps:
+        return float(step) / max(1, warmup_steps)
+    progress = float(step - warmup_steps) / max(1, total_train_steps - warmup_steps)
+    return 0.5 * (1.0 + math.cos(math.pi * progress))
+scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
+amp_enabled = (device == "cuda")
+scaler = GradScaler("cuda", enabled=amp_enabled)
+def evaluate(model, loader):
+    model.eval()
+    total_loss, total_n = 0.0, 0
+    correct = 0
+    all_probs, all_labels = [], []
 
-CHARS = "ACDEFGHIKLMNPQRSTVWY"
-ID2AA = {i + 1: ch for i, ch in enumerate(CHARS)} 
-ID2AA[0] = "X"
+    with torch.no_grad():
+        for xb_cpu, yb_cpu, bb_cpu in loader:
+            xb = xb_cpu.to(device, non_blocking=True)
+            yb = yb_cpu.to(device, non_blocking=True)
+            bb = bb_cpu.to(device, non_blocking=True)
+            logits, loss = model(xb, yb, bias_matrix=bb)
+            probs = torch.softmax(logits, dim=-1)[:, 1]  
+            total_loss += float(loss.item()) * xb.size(0)
+            total_n += xb.size(0)
+            pred = logits.argmax(dim=-1)
+            correct += int((pred == yb).sum().item())
+            all_probs.append(probs.detach().cpu())
+            all_labels.append(yb.detach().cpu())
+
+    avg_loss = total_loss / max(1, total_n)
+    acc = correct / max(1, total_n)
+    auc = prauc = None
+    if SKLEARN_OK:
+        probs_np = torch.cat(all_probs).numpy()
+        labels_np = torch.cat(all_labels).numpy()
+        try:
+            from sklearn.metrics import roc_auc_score, average_precision_score
+            auc   = roc_auc_score(labels_np, probs_np)
+            prauc = average_precision_score(labels_np, probs_np)
+        except Exception:
+            pass
+    model.train()
+    return avg_loss, acc, auc, prauc
 
 
-def build_pair_bias_from_FEGS_SAD(seq: str) -> np.ndarray:
-    AAC, DPC = FEGSFeatureExtractor._SAD_static((seq, AA20))
-    T = len(seq)
-    idxs = np.array([AA_INDEX.get(ch, 0) for ch in seq], dtype=int)
-    P = DPC[idxs][:, idxs].astype(np.float32)  
-    P = 0.5 * (P + P.T)
-    return P
+best_val = float('inf')
+patience = 5
+pat = 0
+best_path = "/content/model_graph_bias_best.pt"
 
+print("\n=== Training ===")
+for epoch in range(EPOCHS):
+    pbar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}", ncols=100)
+    for xb_cpu, yb_cpu, bb_cpu in pbar:
+        xb = xb_cpu.to(device, non_blocking=True)
+        yb = yb_cpu.to(device, non_blocking=True)
+        bb = bb_cpu.to(device, non_blocking=True)
 
-def ids_to_sequence_str(ids_row: np.ndarray) -> str:
-    letters = []
-    for v in ids_row:
-        v = int(v)
-        if v in ID2AA:
-            aa = ID2AA[v]
-            if aa != "X":
-                letters.append(aa)
-    return "".join(letters)
+        with autocast(device_type="cuda", enabled=amp_enabled):
+            logits, loss = model(xb, yb, bias_matrix=bb)
 
+        optimizer.zero_grad(set_to_none=True)
+        scaler.scale(loss).backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+        scaler.step(optimizer)
+        scaler.update()
+        scheduler.step()
 
-class Trainer:
-    @staticmethod
-    def get_default_config():
-        C = CfgNode()
-        C.device = 'cuda'
-        C.num_workers = 4
-        C.max_iters = 200         
-        C.epochs = 20
-        C.batch_size = 128
-        C.max_length = 512
-        C.learning_rate = 8e-4
-        C.betas = (0.9, 0.95)
-        C.weight_decay = 0.1
-        C.grad_norm_clip = 1.0
-        C.use_bias = False      
-        C.log_every = 50
-        C.save_path = "./model_fegs.pt"
-        return C
+        pbar.set_postfix(loss=f"{loss.item():.4f}", lr=f"{scheduler.get_last_lr()[0]:.2e}")
 
-    def __init__(self, config, model, train_dataset, val_dataset):
-        self.config = config
-        self.model = model
-        self.optimizer = None
-        self.train_dataset = train_dataset
-        self.val_dataset = val_dataset
-        self.callbacks = defaultdict(list)
+    val_loss, val_acc, val_auc, val_prauc = evaluate(model, val_loader)
+    msg = f"  -> val_loss={val_loss:.4f} | val_acc={val_acc:.4f}"
+    if val_auc  is not None: msg += f" | val_auc={val_auc:.4f}"
+    if val_prauc is not None: msg += f" | val_pr_auc={val_prauc:.4f}"
+    print(msg)
 
-        self.device = config.device if torch.cuda.is_available() else "cpu"
-        self.model = self.model.to(self.device)
+    if val_loss < best_val - 1e-4:
+        best_val = val_loss
+        pat = 0
+        torch.save(model.state_dict(), best_path)
+        print(f"  Saved checkpoint -> {best_path}")
+    else:
+        pat += 1
+        if pat >= patience:
+            print("Early stopping triggered.")
+            break
 
-        self.iter_num = 0
-        self.iter_time = 0.0
-        self.iter_dt = 0.0
-        self.model.train()
-        self.optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=config.learning_rate,
-            betas=config.betas,
-            weight_decay=config.weight_decay,
-        )
+if os.path.exists(best_path):
+    model.load_state_dict(torch.load(best_path, map_location=device))
+final_loss, final_acc, final_auc, final_prauc = evaluate(model, val_loader)
+print("\n=== Final (best checkpoint) ===")
+print(f"val_loss={final_loss:.4f} | val_acc={final_acc:.4f}" +
+      (f" | val_auc={final_auc:.4f}" if final_auc is not None else "") +
+      (f" | val_pr_auc={final_prauc:.4f}" if final_prauc is not None else ""))
 
-    def add_callback(self, onevent: str, callback):
-        self.callbacks[onevent].append(callback)
+if SKLEARN_OK:
+    model.eval()
+    probs_list, labels_list = [], []
+    with torch.no_grad():
+        for xb_cpu, yb_cpu, bb_cpu in val_loader:
+            xb = xb_cpu.to(device); yb = yb_cpu.to(device); bb = bb_cpu.to(device)
+            logits, _ = model(xb, None, bias_matrix=bb)
+            probs = torch.softmax(logits, dim=-1)[:, 1]
+            probs_list.append(probs.cpu()); labels_list.append(yb.cpu())
+    probs = torch.cat(probs_list).numpy()
+    labels = torch.cat(labels_list).numpy()
 
-    def set_callback(self, onevent: str, callback):
-        self.callbacks[onevent] = [callback]
+    from sklearn.metrics import precision_recall_curve, f1_score
+    prec, rec, thr = precision_recall_curve(labels, probs)
+    f1s = (2*prec*rec)/(prec+rec+1e-12)
+    best_i = f1s[:-1].argmax()
+    best_thr = thr[best_i]
+    yhat = (probs >= best_thr).astype(np.int64)
+    cm = confusion_matrix(labels, yhat)
+    print(f"\nBest F1={f1s[best_i]:.4f} at threshold={best_thr:.4f}")
+    print(f"Precision={prec[best_i]:.4f} | Recall={rec[best_i]:.4f}")
+    print("Confusion matrix @best F1:\n", cm)
 
-    def trigger_callbacks(self, onevent: str):
-        for callback in self.callbacks.get(onevent, []):
-            callback(self)
+print("\nLearned beta per block:")
+for i, blk in enumerate(model.transformer.h):
+    print(f"  block {i}: beta={blk.attn.beta.detach().cpu().item():.4f}")
 
-    def _balanced_sample(self, data_np: np.ndarray, batch_size: int):
+final_path = "/content/model_graph_bias_final.pt"
+torch.save(model.state_dict(), final_path)
+print(f"\nSaved final weights -> {final_path}")
 
-        labels = data_np[:, -1].astype(int)
-        pos_idx = np.where(labels == 1)[0]
-        neg_idx = np.where(labels == 0)[0]
-        if len(pos_idx) == 0 or len(neg_idx) == 0:
-            start = np.random.randint(0, max(1, len(data_np) - batch_size))
-            batch = data_np[start:start + batch_size]
-            seq = batch[:, :-1].astype(np.int64)
-            y = batch[:, -1].astype(np.int64)
-            return seq, y
-
-        N_pos = np.random.randint(0, batch_size + 1)
-        N_neg = batch_size - N_pos
-
-        pos_sel = np.random.choice(pos_idx, size=min(N_pos, len(pos_idx)), replace=len(pos_idx) < N_pos)
-        neg_sel = np.random.choice(neg_idx, size=min(N_neg, len(neg_idx)), replace=len(neg_idx) < N_neg)
-        sel = np.concatenate([pos_sel, neg_sel], axis=0)
-        np.random.shuffle(sel)
-
-        batch = data_np[sel]
-        seq = batch[:, :-1].astype(np.int64) 
-        y = batch[:, -1].astype(np.int64)     
-        return seq, y
-
-    def _random_slice(self, data_np: np.ndarray, batch_size: int):
-        start = np.random.randint(0, max(1, len(data_np) - batch_size))
-        batch = data_np[start:start + batch_size]
-        seq = batch[:, :-1].astype(np.int64)
-        y = batch[:, -1].astype(np.int64)
-        return seq, y
-
-    def _maybe_build_bias_batch(self, seq_ids_batch: torch.Tensor) -> torch.Tensor | None:
-        if not self.config.use_bias:
-            return None
-
-        seq_ids_np = seq_ids_batch.detach().cpu().numpy() 
-        B, T = seq_ids_np.shape
-        out = np.zeros((B, T, T), dtype=np.float32)
-
-        for b in range(B):
-            seq_str = ids_to_sequence_str(seq_ids_np[b])
-            P = build_pair_bias_from_FEGS_SAD(seq_str)
-            if P.shape[0] < T:
-                P_pad = np.zeros((T, T), dtype=np.float32)
-                P_pad[:P.shape[0], :P.shape[0]] = P
-                out[b] = P_pad
-            else:
-                out[b] = P[:T, :T]
-
-        return torch.tensor(out, dtype=torch.float32, device=self.device)
-
-    @torch.no_grad()
-    def _eval_split(self, data_np: np.ndarray, batches: int = 200):
-        self.model.eval()
-        losses = []
-
-        for _ in range(batches):
-            seq_np, y_np = self._random_slice(data_np, self.config.batch_size)
-            X = torch.tensor(seq_np, dtype=torch.long, device=self.device)
-            Y = torch.tensor(y_np, dtype=torch.long, device=self.device)   
-            bias = self._maybe_build_bias_batch(X) 
-            logits, loss = self.model(X, targets=Y, bias_matrix=bias)
-            losses.append(loss.item())
-
-        self.model.train()
-        return float(np.mean(losses))
-    def run(self):
-        cfg = self.config
-
-        print(f"[trainer] device: {self.device}")
-        print(f"[trainer] epochs={cfg.epochs} iters/epoch={cfg.max_iters} batch_size={cfg.batch_size}")
-        print(f"[trainer] lr={cfg.learning_rate} betas={cfg.betas} wd={cfg.weight_decay}")
-        print(f"[trainer] use_bias={cfg.use_bias}")
-
-        for epoch in range(cfg.epochs):
-            t0 = time.time()
-            running = []
-
-            for it in range(cfg.max_iters):
-                seq_np, y_np = self._balanced_sample(self.train_dataset, cfg.batch_size)
-                X = torch.tensor(seq_np, dtype=torch.long, device=self.device)  
-                Y = torch.tensor(y_np, dtype=torch.long, device=self.device)    
-                bias = self._maybe_build_bias_batch(X)
-                logits, loss = self.model(X, targets=Y, bias_matrix=bias)
-                self.model.zero_grad(set_to_none=True)
-                loss.backward()
-                clip_grad_norm_(self.model.parameters(), cfg.grad_norm_clip)
-                self.optimizer.step()
-
-                running.append(loss.item())
-
-                if (it + 1) % cfg.log_every == 0:
-                    avg = float(np.mean(running[-cfg.log_every:]))
-                    print(f"epoch {epoch+1:03d} | it {it+1:04d}/{cfg.max_iters} | loss {avg:.4f}")
-
-            train_loss = self._eval_split(self.train_dataset, batches=100)
-            val_loss = self._eval_split(self.val_dataset, batches=100)
-            dt = time.time() - t0
-            print(f"[epoch {epoch+1:03d}] train {train_loss:.4f} | val {val_loss:.4f} | {dt:.1f}s")
-
-            self.trigger_callbacks("epoch_end")
-
-            try:
-                torch.save(self.model.state_dict(), cfg.save_path)
-                print(f"[saved] {cfg.save_path}")
-            except Exception as e:
-                print(f"[warn] could not save model: {e}")
+gc.collect()
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()

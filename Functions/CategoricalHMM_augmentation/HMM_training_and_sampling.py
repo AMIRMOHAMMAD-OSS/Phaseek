@@ -173,9 +173,9 @@ print(f"Chosen n_states: {model_info['n']} | BIC: {model_info['bic']:.2f}")
 
 aug_sequences = augment_dataset_hmm_guided(
     pos_map, hmm,
-    n_copies=3,        
+    n_copies=10,        
     thr=0.5,
-    rate=0.03,          
+    rate=0.05,          
     temperature=0.9,     
     conservative_strength=0.5,  
     avoid_identity=True

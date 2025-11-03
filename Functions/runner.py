@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import warnings
 import torch
-from classifier_b import Transformer
 from classifier_fgs import transformer
 
 from XGBoost import XGBoost

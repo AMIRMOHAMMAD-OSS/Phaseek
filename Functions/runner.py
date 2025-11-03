@@ -22,7 +22,7 @@ except Exception:
     pass
 
 clf = XGBoost.XGM()
-model = Transformer("c")
+model = transformer("c")
 
 ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
 

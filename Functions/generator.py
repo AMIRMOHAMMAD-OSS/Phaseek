@@ -31,9 +31,6 @@ except Exception as e:
     model = None 
 
 
-# --------------------------
-# Helper: get classifier + AA embedding submatrix (for SeqProp path)
-# --------------------------
 
 def get_classifier_and_W_AA(mode: str = "c"):
 
@@ -142,10 +139,8 @@ def greedy_refine(seq, wrapper, max_iters=200):
     Tries single-residue mutations that improve the score.
     """
     best_seq = list(seq)
-    # Use scorerr to ensure consistent scoring through the wrapper
     best_score = scorerr("".join(best_seq)) 
 
-    # We don't need the 'wrapper' argument here if we use the global scorerr/model
     for _ in range(max_iters):
         improved = False
         for pos in range(len(best_seq)):

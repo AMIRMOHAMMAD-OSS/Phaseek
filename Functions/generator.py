@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
 """
-Sequence design methods for LLPS using a transformer classifier.
-
 Methods:
 1. SeqProp (Gradient-based, continuous optimization with annealing).
 2. AutoRegressive (Greedy/Stochastic step-by-step design).
@@ -13,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from tqdm import tqdm, trange
 
-from classifier_fgs import transformer  # your existing module
+from classifier_fgs import transformer 
 
 
 # --------------------------
@@ -39,11 +36,8 @@ except Exception as e:
 # --------------------------
 
 def get_classifier_and_W_AA(mode: str = "c"):
-    """
-    Build transformer wrapper + underlying classifier + AA embedding submatrix.
-    This is used for the SeqProp-style optimization.
-    """
-    wrapper = transformer(mode)    # loads your ClassifierI
+
+    wrapper = transformer(mode)   
     clf = wrapper._classifier
     clf.eval()
     for p in clf.parameters():
@@ -75,7 +69,6 @@ def scorerr(seq):
 
     def edit(i):
         valid_chars = set("ACDEFGHIKLMNPQRSTVWY")
-        # Efficient sequence cleaning
         return "".join(c.upper() for c in i if c.upper() in valid_chars)
     
     Sequence = edit(seq)
@@ -84,13 +77,13 @@ def scorerr(seq):
 
     u = model.predict_proba([Sequence])
     
-    # Extract the score
+   
     if u.ndim == 2 and u.shape[1] > 0:
         u = u[0, 0]
     elif u.ndim == 1:
         u = u[0]
     else:
-        # Handle unexpected output format gracefully
+        
         return 0.0
         
     score = float(u)
@@ -106,7 +99,6 @@ def run_autoregressive_design(length: int = 120,
     At each step, selects the next residue from the top k_choices that maximize score.
     """
     if model is None:
-        # Re-initialize the model wrapper if running independently (e.g., from CLI)
         global model
         try:
              model = transformer(mode)
@@ -116,32 +108,21 @@ def run_autoregressive_design(length: int = 120,
     CChars = AA
     p11 = list(start_seq)
     
-    # Ensure starting sequence meets minimum length for initial model scoring, if necessary
     while len(p11) < 3 and len(p11) < length:
          p11.append(np.random.choice(list(CChars)))
 
     print(f"--- Starting AutoRegressive Design (L={length}, k={k_choices}) ---")
     
-    # Use tqdm to show generation progress
     pbar = tqdm(range(len(p11), length), desc="Generating Sequence", leave=False)
     for _ in pbar:
-        # Predict probability for all 20 possible next residues
-        
-        # NOTE: Model must score the *full* sequence (current + potential next residue)
-        # We need the wrapper object for scoring, which is accessible globally as 'model'.
+
         current_seqs = ["".join(p11) + i for i in CChars]
         SSC = model.predict_proba(current_seqs).ravel().tolist()
         
         OO = {i: SSC[CChars.index(i)] for i in CChars}
-        
-        # Get the top k_choices AAs based on the next-step score
         top_k = sorted(OO, key=lambda x: -OO[x])[:k_choices]
-        
-        # Pick one of the top k randomly (stochastic element)
         next_res = np.random.choice(top_k)
         p11.append(next_res)
-        
-        # Update progress bar with current score
         current_score = OO[next_res]
         pbar.set_postfix(Score=f"{current_score:.4f}", Res=next_res)
 
@@ -154,10 +135,6 @@ def run_autoregressive_design(length: int = 120,
     
     return final_seq, final_score
 
-
-# --------------------------
-# Optional discrete refinement (Hill Climbing)
-# --------------------------
 
 def greedy_refine(seq, wrapper, max_iters=200):
     """
@@ -350,7 +327,6 @@ def main():
     elif args.method == "autoregressive":
         print(f"\n--- Running AutoRegressive Design (k={args.k_choices}) for {args.num_seqs} Sequence(s) ---\n")
         
-        # Initialize the global model once for the autoregressive function
         global model
         try:
             model = transformer(args.mode)
@@ -360,19 +336,15 @@ def main():
             
         for i in range(args.num_seqs):
             print(f"================== SEQUENCE {i+1}/{args.num_seqs} (Method: AutoRegressive) ==================")
-            # Note: AutoRegressive design is inherently random/stochastic, 
-            # so the seed only affects numpy choice, not the gradient path.
             np.random.seed(args.seed + i) 
             
             final_seq, final_score = run_autoregressive_design(
                 length=args.length, k_choices=args.k_choices, start_seq=args.start_seq, mode=args.mode
             )
-            
-            # We skip the "refine" step here as it's typically less necessary after a greedy build,
-            # but a user could manually add it if desired.
-            
+
             results.append((final_seq, final_score))
             print(f"FINAL DESIGN {i+1} (AutoRegressive): Score: {final_score:.6f}")
 
 if __name__ == "__main__":
+
     main()

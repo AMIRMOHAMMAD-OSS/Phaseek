@@ -6,7 +6,7 @@
   <a href="https://www.biorxiv.org/content/10.1101/2025.01.27.635039v2" target="_blank"><img src="https://img.shields.io/badge/bioRxiv-Preprint-2C974B?style=for-the-badge&logo=readthedocs&logoColor=white" alt="bioRxiv"></a>
   <a href="https://github.com/AMIRMOHAMMAD-OSS/Phaseek"><img src="https://img.shields.io/badge/GitHub-Code-4A90E2?style=for-the-badge&logo=github&logoColor=white" alt="GitHub"></a>
   <a href="https://huggingface.co/AmirMMH/Phaseek"><img src="https://img.shields.io/badge/HuggingFace-Model-FFBF00?style=for-the-badge&logo=huggingface&logoColor=white" alt="HuggingFace Model"></a>
-  <a href="https://colab.research.google.com/github/AMIRMOHAMMAD-OSS/Phaseek/blob/main/phaseek.ipynb"><img src="https://img.shields.io/badge/Colab-Notebook-e2006a?style=for-the-badge&logo=googlecolab&logoColor=white" alt="Colab"></a>
+  <a href="https://colab.research.google.com/github/AMIRMOHAMMAD-OSS/Phaseek/blob/main/phaseek_n3.ipynb"><img src="https://img.shields.io/badge/Colab-Notebook-e2006a?style=for-the-badge&logo=googlecolab&logoColor=white" alt="Colab"></a>
 </p>
 
 # Phaseek, a Liquid–Liquid Phase Separation (LLPS) Protein Scorer

@@ -1,134 +1,279 @@
+from __future__ import annotations
 
-import os
+import warnings
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Iterable, Sequence
+
 import numpy as np
-from multiprocessing import Pool
-from tqdm import tqdm
 from scipy.io import loadmat
+from scipy.linalg import eigvalsh
+from scipy.sparse.linalg import eigsh
 from scipy.spatial.distance import pdist, squareform
-from scipy.sparse.linalg import eigs
-from Bio import SeqIO
+
+from .tokenizer import CANONICAL_AA, normalize_sequence, validate_sequence
 
 
-class FEGSFeatureExtractor:
+DEFAULT_FIXED_MOTIF_INDICES = np.arange(10, dtype=np.int32)
+FIXED_SELECTION_METHOD = "fixed_first10_shap_ordered_Mmat"
 
-    def __init__(self, m_mat_path: str = "/content/classi/M.mat", processes: int | None = None):
-        self.m_mat_path = m_mat_path
-        self.processes = processes
-        mat = loadmat(self.m_mat_path)
-        self.M = mat["M"].flatten()
-        self.P, self.V = self._coordinate()
-        self.num_M = len(self.M)
 
-    @staticmethod
-    def _coordinate():
-        pt = [np.array([np.cos(i * 2 * np.pi / 20), np.sin(i * 2 * np.pi / 20), 1.0]) for i in range(20)]
-        P = np.vstack(pt) 
-        V = [[pt[i] + (1.0 / 20.0) * (pt[j] - pt[i]) for j in range(20)] for i in range(20)]
-        return P, V
+@dataclass
+class GraphExtractionResult:
+    sample_id: str
+    sequence_length: int
+    matrices: list[np.ndarray]
+    motif_indices: np.ndarray
+    motif_orderings: np.ndarray
+    selection_method: str
 
-    @staticmethod
-    def _GRS_static(seq: str, P: np.ndarray, V: list[list[np.ndarray]], M_flat):
 
-        l_seq = len(seq)
-        k = len(M_flat)
-        g = []
+class FastFEGSExtractor:
+    def __init__(self, m_mat_path: str | Path, legacy_wrap_dpc: bool = False):
+        mat = loadmat(str(m_mat_path))
+        if "M" not in mat:
+            raise KeyError(f"M.mat file {m_mat_path} does not contain variable 'M'")
 
-        for j in range(k):
-            c = [np.array([0.0, 0.0, 0.0])]
-            d = np.zeros(3, dtype=float)
-            y = None
+        raw_motifs = mat["M"].flatten()
+        motifs: list[str] = []
+        for raw in raw_motifs:
+            value = raw.item() if hasattr(raw, "item") else raw
+            motif = str(value)
+            if len(motif) != 20 or set(motif) != set(CANONICAL_AA):
+                raise ValueError(
+                    "Every motif in M.mat must be a permutation of the 20 canonical "
+                    f"amino acids; received {motif!r}"
+                )
+            motifs.append(motif)
 
-            motif = M_flat[j]
-            for i in range(l_seq):
-                x = np.array([seq[i] == aa for aa in motif], dtype=int)
-                if i == 0:
-                    c.append(c[i] + x @ P)  
-                else:
-                    if not np.any(x):
-                        d = d * (i - 1) / i
-                        c.append(c[i] + np.array([0.0, 0.0, 1.0]) + d)
-                    elif not np.any(y):
-                        d = d * (i - 1) / i
-                        c.append(c[i] + x @ P + d)
-                    else:
-                        prev_idx = int(np.where(y)[0][0])
-                        curr_idx = int(np.where(x)[0][0])
-                        d = d * (i - 1) / i + V[prev_idx][curr_idx] / i
-                        c.append(c[i] + x @ P + d)
-                y = x
+        if len(motifs) < 10:
+            raise ValueError(
+                f"M.mat contains only {len(motifs)} motifs; at least 10 are required"
+            )
 
-            g.append(np.vstack(c))  
-        return g
+        self.motifs = motifs
+        self.num_motifs = len(motifs)
+        self.legacy_wrap_dpc = legacy_wrap_dpc
+        self.coordinates = self._coordinates()
+
+        code_of = {aa: i for i, aa in enumerate(CANONICAL_AA)}
+        self.code_of = code_of
+        self.rank = np.zeros((self.num_motifs, 20), dtype=np.intp)
+        for motif_index, motif in enumerate(motifs):
+            for position, amino_acid in enumerate(motif):
+                self.rank[motif_index, code_of[amino_acid]] = position
 
     @staticmethod
-    def _ME_static(W: np.ndarray) -> float:
+    def _coordinates() -> np.ndarray:
+        angles = np.arange(20, dtype=np.float64) * (2.0 * np.pi / 20.0)
+        return np.column_stack([np.cos(angles), np.sin(angles), np.ones(20)])
 
-        W = W[1:, :]  
-        x = W.shape[0]
-        D = pdist(W)
-        E = squareform(D)
-        sdist = np.zeros((x, x), dtype=float)
+    def encode(self, sequence: str, sample_id: str = "") -> np.ndarray:
+        sequence = normalize_sequence(sequence)
+        validate_sequence(sequence, sample_id)
+        return np.asarray(
+            [self.code_of.get(residue, -1) for residue in sequence],
+            dtype=np.intp,
+        )
 
-        for i in range(x):
-            for j in range(i, x):
-                if j - i == 1:
-                    sdist[i, j] = E[i, j]
-                elif j - i > 1:
-                    sdist[i, j] = sdist[i, j - 1] + E[j - 1, j]
+    def _graphical_curves_from_rank(
+        self,
+        sequence_codes: np.ndarray,
+        motif_rank: np.ndarray,
+    ) -> np.ndarray:
+        """Create curves only for the supplied motif-rank rows."""
+        length = int(sequence_codes.shape[0])
+        known = sequence_codes >= 0
+        safe = np.where(known, sequence_codes, 0)
 
-        sdist += sdist.T
-        sdd = sdist + np.diag(np.ones(x))
-        L = E / sdd
-        val = eigs(L, k=1)[0][0]
-        return float(np.real(val) / x)
+        motif_positions = motif_rank[:, safe]
+        contributions = self.coordinates[motif_positions].copy()
+
+        if not known.all():
+            indices = np.arange(length)
+            mid_unknown = (~known) & (indices >= 1)
+            first_unknown = (~known) & (indices == 0)
+            if mid_unknown.any():
+                contributions[:, mid_unknown, :] = np.array([0.0, 0.0, 1.0])
+            if first_unknown.any():
+                contributions[:, first_unknown, :] = 0.0
+
+        if length > 1:
+            previous = motif_positions[:, :-1]
+            current = motif_positions[:, 1:]
+            transition = self.coordinates[previous] + (
+                self.coordinates[current] - self.coordinates[previous]
+            ) / 20.0
+            both_known = known[:-1] & known[1:]
+            transition *= both_known[None, :, None]
+            running_mean = np.cumsum(transition, axis=1) / np.arange(
+                1, length
+            )[None, :, None]
+            contributions[:, 1:, :] += running_mean
+
+        return np.cumsum(contributions, axis=1)
+
+    def graphical_curves(self, sequence_codes: np.ndarray) -> np.ndarray:
+        """Classical FEGS path: curves for all motifs."""
+        return self._graphical_curves_from_rank(sequence_codes, self.rank)
+
+    def graphical_curves_selected(
+        self,
+        sequence_codes: np.ndarray,
+        motif_indices: Sequence[int] = DEFAULT_FIXED_MOTIF_INDICES,
+    ) -> np.ndarray:
+        indices = self._validate_motif_indices(motif_indices)
+        return self._graphical_curves_from_rank(sequence_codes, self.rank[indices])
+
+    def _validate_motif_indices(
+        self,
+        motif_indices: Sequence[int],
+    ) -> np.ndarray:
+        indices = np.asarray(motif_indices, dtype=np.int32).reshape(-1)
+        if len(indices) == 0:
+            raise ValueError("At least one motif index is required")
+        if len(np.unique(indices)) != len(indices):
+            raise ValueError(f"Motif indices must be unique, received {indices.tolist()}")
+        if int(indices.min()) < 0 or int(indices.max()) >= self.num_motifs:
+            raise ValueError(
+                f"Motif indices {indices.tolist()} exceed M.mat range "
+                f"0..{self.num_motifs - 1}"
+            )
+        return indices
 
     @staticmethod
-    def _SAD_static(args):
-        seq, a = args
-        len_seq = len(seq)
-        len_a = len(a)
+    def graph_matrix(curve: np.ndarray) -> np.ndarray:
+        length = curve.shape[0]
+        if length == 0:
+            raise ValueError("Cannot create a graph matrix for an empty sequence")
+        if length == 1:
+            return np.zeros((1, 1), dtype=np.float32)
 
-        c = [np.array([s == aa for s in seq], dtype=bool) for aa in a]
-        AAC = np.array([np.sum(c[i]) / max(len_seq, 1) for i in range(len_a)], dtype=float)
-
-        DPC = np.zeros((len_a, len_a), dtype=float)
-        if len_seq > 1:
-            for i in range(len_a):
-                for j in range(len_a):
-
-                    DPC[i, j] = np.sum((np.roll(c[j], -1).astype(int) * 2 - c[i].astype(int)) == 1) / (len_seq - 1)
-
-        return AAC, DPC
+        euclidean = squareform(pdist(curve))
+        step_lengths = np.linalg.norm(np.diff(curve, axis=0), axis=1)
+        cumulative = np.concatenate(([0.0], np.cumsum(step_lengths)))
+        arc_distance = np.abs(cumulative[:, None] - cumulative[None, :])
+        denominator = arc_distance + np.eye(length, dtype=np.float64)
+        matrix = np.divide(
+            euclidean,
+            denominator,
+            out=np.zeros_like(euclidean),
+            where=denominator != 0,
+        )
+        matrix = 0.5 * (matrix + matrix.T)
+        return matrix.astype(np.float32)
 
     @staticmethod
-    def _load_sequences_any(sequences, start_seq: int, end_seq: int | None):
+    def dominant_score(matrix: np.ndarray) -> float:
+        length = matrix.shape[0]
+        if length <= 1:
+            return 0.0
+        matrix64 = np.asarray(matrix, dtype=np.float64)
+        try:
+            if length < 32:
+                value = eigvalsh(
+                    matrix64,
+                    subset_by_index=[length - 1, length - 1],
+                )[0]
+            else:
+                value = eigsh(
+                    matrix64,
+                    k=1,
+                    which="LA",
+                    return_eigenvectors=False,
+                    tol=1e-6,
+                    maxiter=max(1000, length * 20),
+                )[0]
+        except Exception:
+            value = eigvalsh(
+                matrix64,
+                subset_by_index=[length - 1, length - 1],
+            )[0]
+        return float(value) / length
 
-        if isinstance(sequences, str) and "fasta" in sequences.lower():
-            seqs = [str(record.seq) for record in SeqIO.parse(sequences, "fasta")]
-        elif isinstance(sequences, (list, tuple, np.ndarray)):
-            seqs = list(sequences)
-        else:
-            raise ValueError("`sequences` must be a FASTA path or a list/array of sequences.")
+    def extract_selected_graphs(
+        self,
+        sample_id: str,
+        sequence: str,
+        motif_indices: Sequence[int] = DEFAULT_FIXED_MOTIF_INDICES,
+    ) -> GraphExtractionResult:
+        indices = self._validate_motif_indices(motif_indices)
+        normalized_sequence = normalize_sequence(sequence)
+        codes = self.encode(normalized_sequence, sample_id)
+        curves = self._graphical_curves_from_rank(codes, self.rank[indices])
+        matrices = [self.graph_matrix(curve) for curve in curves]
+        orderings = np.asarray([self.motifs[i] for i in indices], dtype="<U20")
 
-        return seqs[start_seq:end_seq]
+        return GraphExtractionResult(
+            sample_id=sample_id,
+            sequence_length=len(normalized_sequence),
+            matrices=matrices,
+            motif_indices=indices.copy(),
+            motif_orderings=orderings,
+            selection_method=FIXED_SELECTION_METHOD,
+        )
 
-    def extract(self, sequences, start_seq: int = 0, end_seq: int | None = None) -> np.ndarray:
+    def extract_topk_graphs(
+        self,
+        sample_id: str,
+        sequence: str,
+        topk: int = 10,
+    ) -> GraphExtractionResult:
 
-        P, V, M_flat = self.P, self.V, self.M
-        sequences = self._load_sequences_any(sequences, start_seq, end_seq)
-        l = len(sequences)
-        with Pool(processes=self.processes) as pool:
-            g_p = pool.starmap(self._GRS_static, [(seq, P, V, M_flat) for seq in sequences])
+        warnings.warn(
+            "extract_topk_graphs now means fixed first-k SHAP-ordered M.mat rows; "
+            "use extract_selected_graphs for explicit behavior",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.extract_selected_graphs(
+            sample_id,
+            sequence,
+            motif_indices=np.arange(topk, dtype=np.int32),
+        )
 
-        EL_vals = [self._ME_static(W) for g_list in tqdm(g_p, desc="ME", leave=False) for W in g_list]
-        EL = np.array(EL_vals, dtype=float).reshape(l, self.num_M)
+    def composition_features(
+        self,
+        sequence_codes: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        length = len(sequence_codes)
+        valid = sequence_codes[sequence_codes >= 0]
+        aac = np.bincount(valid, minlength=20).astype(np.float64) / max(length, 1)
+        dpc = np.zeros((20, 20), dtype=np.float64)
+        if length > 1:
+            if self.legacy_wrap_dpc:
+                next_codes = np.roll(sequence_codes, -1)
+                valid_pairs = (sequence_codes >= 0) & (next_codes >= 0)
+                np.add.at(
+                    dpc,
+                    (sequence_codes[valid_pairs], next_codes[valid_pairs]),
+                    1.0,
+                )
+            else:
+                left = sequence_codes[:-1]
+                right = sequence_codes[1:]
+                valid_pairs = (left >= 0) & (right >= 0)
+                np.add.at(
+                    dpc,
+                    (left[valid_pairs], right[valid_pairs]),
+                    1.0,
+                )
+            dpc /= length - 1
+        return aac, dpc
 
-        char = 'ARNDCQEGHILKMFPSTWYV' 
-        with Pool(processes=self.processes) as pool:
-            results = pool.map(self._SAD_static, [(seq, char) for seq in sequences])
-
-        FA = np.array([res[0] for res in results], dtype=float)               
-        FD = np.array([res[1].flatten() for res in results], dtype=float)      
-
-        FV = np.hstack((EL, FA, FD))
-        return FV
+    def extract_features(self, sequences: Iterable[str]) -> np.ndarray:
+        """Classical FEGS 158 eigenvalue + AAC + DPC feature vectors."""
+        rows = []
+        for sequence in sequences:
+            codes = self.encode(sequence)
+            curves = self.graphical_curves(codes)
+            eigenvalues = np.asarray(
+                [
+                    self.dominant_score(self.graph_matrix(curve))
+                    for curve in curves
+                ],
+                dtype=np.float64,
+            )
+            aac, dpc = self.composition_features(codes)
+            rows.append(np.concatenate([eigenvalues, aac, dpc.ravel()]))
+        return np.vstack(rows)

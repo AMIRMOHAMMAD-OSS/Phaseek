@@ -1,0 +1,17 @@
+{
+  "real_training_positives": 593,
+  "generated_hmm_variants": 3558,
+  "combined_training_positives": 4151,
+  "unique_combined_sequences": 4151,
+  "parents_eligible_for_augmentation": 397,
+  "parents_receiving_at_least_one_variant": 397,
+  "selected_hmm_states": 9,
+  "hmm_training_residues": 68076,
+  "hmm_training_segments": 658,
+  "mean_mutation_count": 8.709949409780776,
+  "mean_mutation_fraction": 0.027101842607353512,
+  "minimum_parent_identity": 0.9114583333333334,
+  "maximum_parent_identity": 0.998003992015968,
+  "all_idrs_unchanged": true,
+  "input_fasta_sha256": "d8d0d0107113eac1629e187de5007742c27c1c0d35d82c776054b2b53b93368d"
+}

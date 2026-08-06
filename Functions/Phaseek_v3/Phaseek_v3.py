@@ -20,7 +20,6 @@ class HeadMixture(nn.Module):
 
     def mixture_weights(self, layer_index: int | None = None) -> torch.Tensor:
         del layer_index
-        # Centering removes softmax's arbitrary additive offsets and improves identifiability.
         alpha = self.alpha - self.alpha.mean()
         delta = self.delta - self.delta.mean(dim=-1, keepdim=True)
         return torch.softmax((alpha.unsqueeze(0) + delta) / self.tau, dim=-1)

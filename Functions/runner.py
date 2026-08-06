@@ -32,7 +32,7 @@ from phaseek_v2.tokenizer import encode_sequence
 warnings.filterwarnings("ignore")
 
 ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
-RUNNER_VERSION = "2026-08-06-v2-xgboost-1"
+RUNNER_VERSION = "2026-08-06-v2-xgboost-fixed-1"
 
 _V1_CLF = None
 _V1_MODEL = None
@@ -192,9 +192,11 @@ def combine_v1_score(residue_scores, sequence_score, clf):
             residue_scores[start:start + 5537]
             for start in range(0, len(residue_scores), 5537)
         ]
-        return enhanced_mean([scorer(chunk) for chunk in chunks])
+        raw_score = enhanced_mean([scorer(chunk) for chunk in chunks])
+        return float(np.clip(raw_score, 0.0, 1.0))
 
-    return float(scorer(residue_scores))
+    raw_score = float(scorer(residue_scores))
+    return float(np.clip(raw_score, 0.0, 1.0))
 
 
 def score1(index, scores, half_window, length):
@@ -221,10 +223,7 @@ def adjust_residue_score(value, sequence_score):
     return value
 
 
-def score_v1_sequence(
-    sequence: str,
-    sequence_score_override: float | None = None,
-):
+def score_v1_sequence(sequence: str):
     clf, model = load_v1()
 
     length = len(sequence)
@@ -260,16 +259,10 @@ def score_v1_sequence(
         ).reshape(-1)[0]
     )
 
-    sequence_score = (
-        raw_v1_score
-        if sequence_score_override is None
-        else float(sequence_score_override)
-    )
-
     residue_scores = [
         adjust_residue_score(
             score1(position, local_scores, half_window, length),
-            sequence_score,
+            raw_v1_score,
         )
         for position in range(1, length + 1)
     ]
@@ -281,7 +274,7 @@ def score_v1_sequence(
 
     final_score = combine_v1_score(
         residue_scores,
-        sequence_score,
+        raw_v1_score,
         clf,
     )
 
@@ -471,6 +464,10 @@ def score_one(
 ):
     sequence = clean_sequence(sequence)
 
+    v1_final_score, residue_scores, raw_v1_score = (
+        score_v1_sequence(sequence)
+    )
+
     if model_version == "v2":
         raw_model_score, raw_model_threshold, window_results = (
             score_v2_sequence(
@@ -484,14 +481,14 @@ def score_one(
             )
         )
 
-        global_score, residue_scores, raw_v1_score = score_v1_sequence(
-            sequence,
-            sequence_score_override=raw_model_score,
+        clf, _ = load_v1()
+        global_score = combine_v1_score(
+            residue_scores,
+            raw_model_score,
+            clf,
         )
     else:
-        global_score, residue_scores, raw_v1_score = score_v1_sequence(
-            sequence
-        )
+        global_score = v1_final_score
         raw_model_score = raw_v1_score
         raw_model_threshold = 0.5
         window_results = []

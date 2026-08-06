@@ -3,9 +3,9 @@ from __future__ import annotations
 
 import argparse
 
-from phaseek_v3.config import ModelConfig, TrainConfig, choose_model_profile
-from phaseek_v3.data import read_manifest
-from phaseek_v3.trainer import train_model
+from phaseek_v2.config import ModelConfig, TrainConfig, choose_model_profile
+from phaseek_v2.data import read_manifest
+from phaseek_v2.trainer import train_model
 
 
 def main() -> None:

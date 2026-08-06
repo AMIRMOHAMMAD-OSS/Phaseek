@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from phaseek_v3.fegs_fast import (
+from phaseek_v2.fegs_fast import (
     FIXED_SELECTION_METHOD,
     FastFEGSExtractor,
 )

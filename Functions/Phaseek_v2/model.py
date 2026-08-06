@@ -202,7 +202,7 @@ class MaskedAttentionPooling(nn.Module):
         return torch.einsum("bt,btd->bd", weights, x)
 
 
-class PhaseekV3Classifier(nn.Module):
+class PhaseekV2Classifier(nn.Module):
     def __init__(self, config: ModelConfig):
         super().__init__()
         config.validate()

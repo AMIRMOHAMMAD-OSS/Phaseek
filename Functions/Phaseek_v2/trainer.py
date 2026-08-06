@@ -75,7 +75,7 @@ def classification_loss(
 
 @torch.inference_mode()
 def evaluate_loader(
-    model: PhaseekV3Classifier,
+    model: PhaseekV2Classifier,
     loader: torch.utils.data.DataLoader,
     device: torch.device,
     class_weights: torch.Tensor | None,
@@ -125,7 +125,7 @@ def evaluate_loader(
 
 
 def gradient_flow_smoke_test(
-    model: PhaseekV3Classifier,
+    model: PhaseekV2Classifier,
     batch: dict[str, Any],
     device: torch.device,
     class_weights: torch.Tensor | None,
@@ -193,7 +193,7 @@ def _selection_value(metrics: dict, selection_metric: str) -> float:
 
 
 def _checkpoint_payload(
-    model: PhaseekV3Classifier,
+    model: PhaseekV2Classifier,
     optimizer: torch.optim.Optimizer,
     scheduler: torch.optim.lr_scheduler.LRScheduler,
     scaler: GradScaler,
@@ -295,10 +295,10 @@ def train_model(
         else make_loader(splits["test"], shuffle=False, **loader_kwargs)
     )
 
-    model = PhaseekV3Classifier(model_config).to(device)
+    model = PhaseekV2Classifier(model_config).to(device)
     if train_config.compile_model:
         model = torch.compile(model)  # type: ignore[assignment]
-    raw_model: PhaseekV3Classifier = model._orig_mod if hasattr(model, "_orig_mod") else model  # type: ignore[attr-defined]
+    raw_model: PhaseekV2Classifier = model._orig_mod if hasattr(model, "_orig_mod") else model  # type: ignore[attr-defined]
 
     optimizer_kwargs: dict[str, Any] = {
         "params": raw_model.optimizer_groups(
@@ -582,10 +582,10 @@ def train_model(
 def load_model_from_checkpoint(
     checkpoint_path: str | Path,
     device: torch.device,
-) -> tuple[PhaseekV3Classifier, dict]:
+) -> tuple[PhaseekV2Classifier, dict]:
     checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     model_config = ModelConfig(**checkpoint["model_config"])
-    model = PhaseekV3Classifier(model_config).to(device)
+    model = PhaseekV2Classifier(model_config).to(device)
     model.load_state_dict(checkpoint["model_state"])
     model.eval()
     return model, checkpoint

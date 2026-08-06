@@ -31,6 +31,7 @@ from phaseek_v2.tokenizer import encode_sequence
 warnings.filterwarnings("ignore")
 
 ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
+RUNNER_VERSION = "2026-08-06-verified-2"
 
 _V1_CLF = None
 _V1_MODEL = None
@@ -64,10 +65,75 @@ def load_v1():
     if _V1_CLF is not None and _V1_MODEL is not None:
         return _V1_CLF, _V1_MODEL
 
-    if str(V1_DIR) not in sys.path:
-        sys.path.insert(0, str(V1_DIR))
-
+    import importlib
     import random
+
+    module_dir = next(
+        (
+            candidate
+            for candidate in (V1_DIR, ROOT)
+            if (
+                (candidate / "classifier_fgs.py").is_file()
+                and (candidate / "XGBoost.py").is_file()
+            )
+        ),
+        None,
+    )
+
+    if module_dir is None:
+        raise FileNotFoundError(
+            "Phaseek v1 files were not found. Expected classifier_fgs.py "
+            f"and XGBoost.py in {V1_DIR} or {ROOT}."
+        )
+
+    model_locations = [
+        ROOT.parent / "model",
+        ROOT / "model",
+        V1_DIR / "model",
+    ]
+
+    source_model_dir = next(
+        (
+            path
+            for path in model_locations
+            if path.is_dir() and any(path.iterdir())
+        ),
+        None,
+    )
+
+    if source_model_dir is None:
+        raise FileNotFoundError(
+            "Phaseek v1 model assets were not found in any expected model folder."
+        )
+
+    source_model_dir = source_model_dir.resolve()
+
+    # Support both old path styles used by the v1 files:
+    # ../model relative to Functions and ../model relative to Phaseek_v1.
+    for alias in (ROOT.parent / "model", ROOT / "model"):
+        if alias.resolve() == source_model_dir:
+            continue
+
+        if alias.is_symlink():
+            alias.unlink()
+        elif alias.exists():
+            continue
+
+        alias.symlink_to(source_model_dir, target_is_directory=True)
+
+    module_path = str(module_dir.resolve())
+
+    while module_path in sys.path:
+        sys.path.remove(module_path)
+    sys.path.insert(0, module_path)
+
+    for module_name in (
+        "classifier_fgs",
+        "XGBoost",
+        "Configue",
+        "FEGS_feature_extraction",
+    ):
+        sys.modules.pop(module_name, None)
 
     torch.manual_seed(0)
     np.random.seed(0)
@@ -75,12 +141,12 @@ def load_v1():
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-    with working_directory(V1_DIR):
-        from classifier_fgs import transformer
-        from XGBoost import XGBoost
+    with working_directory(ROOT):
+        classifier_module = importlib.import_module("classifier_fgs")
+        xgboost_module = importlib.import_module("XGBoost")
 
-        _V1_CLF = XGBoost.XGM()
-        _V1_MODEL = transformer("c")
+        _V1_CLF = xgboost_module.XGBoost.XGM()
+        _V1_MODEL = classifier_module.transformer("c")
 
     return _V1_CLF, _V1_MODEL
 
@@ -506,15 +572,6 @@ def main():
     args = parser.parse_args()
 
     fasta_path = Path(args.fasta) if args.fasta else None
-
-    if (
-        fasta_path is None
-        and args.sequence
-        and Path(args.sequence).is_file()
-        and Path(args.sequence).suffix.lower()
-        in {".fasta", ".fa", ".faa", ".fas"}
-    ):
-        fasta_path = Path(args.sequence)
 
     if fasta_path is not None:
         rows = []

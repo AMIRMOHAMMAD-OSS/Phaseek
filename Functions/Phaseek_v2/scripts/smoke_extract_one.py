@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from phaseek_v3.fegs_fast import (
+from phaseek_v2.fegs_fast import (
     DEFAULT_FIXED_MOTIF_INDICES,
     FIXED_SELECTION_METHOD,
     FastFEGSExtractor,

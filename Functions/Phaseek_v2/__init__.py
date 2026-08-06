@@ -1,3 +1,3 @@
-"""Phaseek v3: graph-biased protein transformer training package."""
+"""Phaseek v2: graph-biased protein transformer training package."""
 
-__version__ = "3.1.0"
+__version__ = "2.1.0"

@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from phaseek_v3.matrices import MatrixLoadConfig, MatrixStore, standardize_valid_matrix
+from phaseek_v2.matrices import MatrixLoadConfig, MatrixStore, standardize_valid_matrix
 
 
 def test_standardization_uses_only_valid_region():

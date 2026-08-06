@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from phaseek_v3.fegs_fast import FIXED_SELECTION_METHOD
+from phaseek_v2.fegs_fast import FIXED_SELECTION_METHOD
 
 
 def scalar(value):

@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from phaseek_v2.config import ModelConfig
-from phaseek_v2.model import PhaseekV3Classifier
+from phaseek_v2.model import PhaseekV2Classifier
 
 
 def test_graph_mixture_receives_classification_gradient():
@@ -19,7 +19,7 @@ def test_graph_mixture_receives_classification_gradient():
         resid_pdrop=0.0,
         attn_pdrop=0.0,
     )
-    model = PhaseekV3Classifier(config)
+    model = PhaseekV2Classifier(config)
     tokens = torch.tensor(
         [[1, 2, 3, 4, 5, 0, 0, 0, 0, 0, 0, 0], [5, 4, 3, 2, 1, 6, 7, 0, 0, 0, 0, 0]],
         dtype=torch.long,

@@ -1,0 +1,45 @@
+{
+  "beta_by_block": [
+    {
+      "finite": true,
+      "norm": 0.0002427592989988625,
+      "present": true
+    },
+    {
+      "finite": true,
+      "norm": 0.00011423139949329197,
+      "present": true
+    },
+    {
+      "finite": true,
+      "norm": 4.4308228098088875e-05,
+      "present": true
+    },
+    {
+      "finite": true,
+      "norm": 3.464888868620619e-05,
+      "present": true
+    },
+    {
+      "finite": true,
+      "norm": 4.494415406952612e-05,
+      "present": true
+    },
+    {
+      "finite": true,
+      "norm": 2.5612234821892343e-05,
+      "present": true
+    }
+  ],
+  "loss": 0.6820452213287354,
+  "mixer_alpha": {
+    "finite": true,
+    "norm": 2.397262903741648e-07,
+    "present": true
+  },
+  "mixer_delta": {
+    "finite": true,
+    "norm": 4.1171239217874245e-07,
+    "present": true
+  }
+}

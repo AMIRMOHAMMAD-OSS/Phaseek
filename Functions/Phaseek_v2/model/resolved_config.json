@@ -1,0 +1,56 @@
+{
+  "accumulation_steps": 4,
+  "actual_effective_batch_size": 128,
+  "amp_dtype": "torch.bfloat16",
+  "amp_enabled": true,
+  "class_counts_train": {
+    "negative": 4167,
+    "positive": 593
+  },
+  "class_weights": [
+    0.5711543076553875,
+    4.013490725126475
+  ],
+  "device": "cuda",
+  "gpu_memory_gb": 79.1806640625,
+  "model_config": {
+    "attn_pdrop": 0.1,
+    "beta_init": 0.01,
+    "block_size": 512,
+    "embd_pdrop": 0.1,
+    "mixture_l2": 0.0001,
+    "mixture_tau": 1.0,
+    "n_embd": 192,
+    "n_head": 6,
+    "n_layer": 6,
+    "pooling": "mean",
+    "resid_pdrop": 0.1,
+    "topk_m": 10,
+    "use_graph_bias": true,
+    "vocab_size": 22
+  },
+  "parameter_count": 2772588,
+  "train_config": {
+    "amp": "bf16",
+    "balance_mode": "weighted",
+    "batch_size": 32,
+    "compile_model": false,
+    "deterministic": false,
+    "effective_batch_size": 128,
+    "epochs": 40,
+    "label_smoothing": 0.0,
+    "learning_rate": 0.0004242640687119285,
+    "matrix_cache_items": 8,
+    "matrix_dtype": "float16",
+    "max_grad_norm": 1.0,
+    "min_learning_rate_ratio": 0.05,
+    "num_workers": 8,
+    "patience": 12,
+    "prefetch_factor": 3,
+    "seed": 42,
+    "selection_metric": "pr_auc",
+    "strict_matrices": true,
+    "warmup_fraction": 0.08,
+    "weight_decay": 0.01
+  }
+}

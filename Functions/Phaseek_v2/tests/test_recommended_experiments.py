@@ -1,8 +1,8 @@
 import torch
 import torch.nn.functional as F
 
-from phaseek_v3.config import ModelConfig
-from phaseek_v3.model import LayerwiseHeadMixture, PhaseekV3Classifier
+from phaseek_v2.config import ModelConfig
+from phaseek_v2.model import LayerwiseHeadMixture, PhaseekV3Classifier
 
 
 def small_batch(topk: int = 3):

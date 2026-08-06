@@ -5,7 +5,6 @@ import json
 import os
 import sys
 import warnings
-from contextlib import contextmanager
 from pathlib import Path
 
 import numpy as np
@@ -41,15 +40,6 @@ _V2_EXTRACTOR = None
 _V2_DEVICE = None
 
 
-@contextmanager
-def working_directory(path: Path):
-    old = Path.cwd()
-    os.chdir(path)
-    try:
-        yield
-    finally:
-        os.chdir(old)
-
 
 def clean_sequence(sequence: str) -> str:
     sequence = "".join(ch.upper() for ch in sequence if ch.upper() in ALPHABET)
@@ -64,10 +54,46 @@ def load_v1():
     if _V1_CLF is not None and _V1_MODEL is not None:
         return _V1_CLF, _V1_MODEL
 
-    if str(V1_DIR) not in sys.path:
-        sys.path.insert(0, str(V1_DIR))
-
     import random
+
+    root_path = str(ROOT.resolve())
+    v1_path = V1_DIR.resolve()
+
+    # Never import the duplicated modules from Functions/Phaseek_v1.
+    sys.path[:] = [
+        entry
+        for entry in sys.path
+        if Path(entry or ".").resolve() != v1_path
+    ]
+
+    # Force the original v1 modules in Functions/ to be imported first.
+    if root_path in sys.path:
+        sys.path.remove(root_path)
+    sys.path.insert(0, root_path)
+
+    # Remove a wrong cached import when this module is used interactively.
+    for module_name in ("classifier_fgs", "XGBoost", "Configue"):
+        module = sys.modules.get(module_name)
+        module_file = getattr(module, "__file__", None)
+
+        if module_file and Path(module_file).resolve().parent != ROOT.resolve():
+            del sys.modules[module_name]
+
+    import classifier_fgs
+    import XGBoost as xgboost_module
+
+    classifier_path = Path(classifier_fgs.__file__).resolve()
+    xgboost_path = Path(xgboost_module.__file__).resolve()
+
+    if classifier_path.parent != ROOT.resolve():
+        raise ImportError(
+            f"Wrong classifier_fgs imported: {classifier_path}"
+        )
+
+    if xgboost_path.parent != ROOT.resolve():
+        raise ImportError(
+            f"Wrong XGBoost imported: {xgboost_path}"
+        )
 
     torch.manual_seed(0)
     np.random.seed(0)
@@ -75,12 +101,8 @@ def load_v1():
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-    with working_directory(V1_DIR):
-        from classifier_fgs import transformer
-        from XGBoost import XGBoost
-
-        _V1_CLF = XGBoost.XGM()
-        _V1_MODEL = transformer("c")
+    _V1_CLF = xgboost_module.XGBoost.XGM()
+    _V1_MODEL = classifier_fgs.transformer("c")
 
     return _V1_CLF, _V1_MODEL
 
@@ -506,15 +528,6 @@ def main():
     args = parser.parse_args()
 
     fasta_path = Path(args.fasta) if args.fasta else None
-
-    if (
-        fasta_path is None
-        and args.sequence
-        and Path(args.sequence).is_file()
-        and Path(args.sequence).suffix.lower()
-        in {".fasta", ".fa", ".faa", ".fas"}
-    ):
-        fasta_path = Path(args.sequence)
 
     if fasta_path is not None:
         rows = []

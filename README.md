@@ -2,12 +2,6 @@
   <img src="Picture10.svg" alt="Phaseek logo" width="650">
 </p>
 
-<h1 align="center">Phaseek</h1>
-
-<p align="center">
-  LLPS prediction and phase-separating peptide generation
-</p>
-
 <p align="center">
   <a href="https://colab.research.google.com/github/AMIRMOHAMMAD-OSS/Phaseek/blob/main/phaseek_colab.ipynb">
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in Colab">
@@ -16,30 +10,38 @@
     <img src="https://img.shields.io/badge/Hugging%20Face-Phaseek-FFD21E" alt="Hugging Face">
   </a>
   <a href="https://www.biorxiv.org/content/10.1101/2025.01.27.635039v2">
-    <img src="https://img.shields.io/badge/bioRxiv-Preprint-B31B1B" alt="bioRxiv">
+    <img src="https://img.shields.biorxiv.org/content/10.1101/2025.01.27.635039v2">
+    <img src="https://.io/badge/bioRxiv-Preprint-B31B1B" alt="bioRxiv preprint">
   </a>
   <a href="LICENSE.pdf">
-    <img src="https://img.shields.io/badge/License-Research%20Purposes%20Restricted-blue" alt="License">
+    <img src="https://img.shields.io/badge/License-Research%20Purposes%20Restricted-168ACD" alt="License">
   </a>
 </p>
 
+<p align="center">
+  <strong>LLPS prediction and phase-separating peptide generation</strong>
+</p>
+
+---
+
 ## Overview
 
-Phaseek is a sequence-based tool for studying protein liquid–liquid phase separation (LLPS).
+Phaseek is a sequence-based computational tool for studying protein liquid–liquid phase separation (LLPS).
 
 It provides two main functions:
 
-- **LLPS prediction:** scores protein sequences and produces residue-level LLPS profiles.
-- **Peptide generation:** designs new amino-acid sequences with high predicted LLPS propensity using gradient-based optimization.
+- **LLPS prediction:** scores protein sequences and generates residue-level LLPS profiles.
+- **Peptide generation:** designs amino-acid sequences with high predicted LLPS propensity using gradient-based sequence optimization.
 
 Phaseek supports:
 
 - Phaseek v1 and Phaseek v2
 - single-sequence prediction
-- FASTA batch prediction
+- batch prediction from FASTA files
 - residue-level LLPS profiles
 - overlapping-window analysis for long sequences
 - SeqProp-inspired peptide generation
+- optional local sequence refinement
 - Google Colab execution
 
 ## Links
@@ -54,9 +56,9 @@ Phaseek supports:
   <img src="Picture11.svg" alt="Phaseek model architecture" width="900">
 </p>
 
-Phaseek v2 combines a Transformer sequence encoder with FEGS graph matrices to calculate a sequence-level LLPS score.
+Phaseek v2 combines a Transformer-based sequence encoder with FEGS graph matrices to calculate a sequence-level LLPS score.
 
-The current prediction pipeline also produces residue-level scores and a final combined Phaseek score.
+The prediction workflow also reports a residue-level LLPS profile and a final Phaseek score.
 
 ## Installation
 
@@ -115,7 +117,7 @@ The Colab notebook downloads and configures the required files automatically.
 
 ## Prediction
 
-The command-line interface is:
+The main command-line interface is:
 
 ```text
 Functions/runner.py
@@ -167,7 +169,7 @@ python Functions/runner.py \
 | Argument | Description |
 |---|---|
 | `--model` | Selects `v1` or `v2`. |
-| `--sequence` | Sequence used for single-sequence prediction. |
+| `--sequence` | Amino-acid sequence for single-sequence prediction. |
 | `--fasta` | Path to a FASTA file. |
 | `--id` | Identifier used for the result folder. |
 | `--directory` | Parent directory created inside `Functions/Results`. |
@@ -181,7 +183,7 @@ python Functions/runner.py \
 
 ## Long Sequences
 
-Phaseek v2 supports a maximum input length of 512 residues per model call.
+Phaseek v2 processes up to 512 residues per model call.
 
 Longer sequences are divided into overlapping windows. The default settings are:
 
@@ -191,7 +193,7 @@ Stride: 256
 Aggregation: mean
 ```
 
-The final window is aligned with the end of the sequence.
+The last window is aligned with the end of the sequence.
 
 Window scores are combined using either:
 
@@ -216,7 +218,7 @@ window_scores.csv
 
 ### `scores.csv`
 
-Contains the residue-level profile:
+Contains the residue-level LLPS profile:
 
 | Column | Description |
 |---|---|
@@ -248,21 +250,21 @@ LLPS_prediction_of_seqs.csv
 
 The Colab notebook includes sections for:
 
-1. installing Phaseek
+1. installing Phaseek and its dependencies
 2. selecting Phaseek v1 or v2
 3. scoring a sequence or FASTA file
-4. plotting residue-level scores
-5. visualizing LLPS regions on a structure
+4. plotting residue-level LLPS scores
+5. mapping LLPS scores onto a protein structure
 6. generating phase-separating peptides
 7. downloading the results
 
-Open the notebook:
+Open the notebook here:
 
 [Phaseek Colab notebook](https://colab.research.google.com/github/AMIRMOHAMMAD-OSS/Phaseek/blob/main/phaseek_colab.ipynb)
 
 ## Phase-Separating Peptide Generation
 
-Phaseek includes a SeqProp-inspired gradient-based method for generating amino-acid sequences with high predicted LLPS propensity.
+Phaseek includes a SeqProp-inspired gradient-based method for generating sequences with high predicted LLPS propensity.
 
 A candidate sequence is represented as a trainable logit matrix:
 
@@ -272,7 +274,7 @@ $$
 
 Here, $L$ is the sequence length selected by the user.
 
-The first sequence position is fixed to methionine. The remaining positions are randomly initialized.
+The first position is fixed to methionine. The remaining positions are randomly initialized.
 
 During optimization, the logits are converted into differentiable amino-acid probabilities:
 
@@ -290,10 +292,10 @@ $$
 where:
 
 - $G_{i,a}$ is Gumbel noise
-- $\tau_t$ is the temperature at optimization step $t$
+- $\tau_t$ is the temperature at step $t$
 - $\alpha_t$ is the Gumbel-noise scale
 
-The probability matrix is projected into the selected model's amino-acid embedding space:
+The probability matrix is projected into the model embedding space:
 
 $$
 E = P W_{AA}
@@ -319,7 +321,7 @@ where:
 
 Only the sequence logits are updated. The Phaseek model parameters remain frozen.
 
-After optimization, the final sequence is obtained using argmax decoding:
+After optimization, the sequence is decoded using:
 
 $$
 s_i
@@ -328,7 +330,7 @@ s_i
 \theta_{i,a}
 $$
 
-An optional refinement step can test single-residue substitutions and keep substitutions that increase the selected model's raw score.
+An optional refinement step can test single-residue substitutions and retain substitutions that increase the selected model's raw score.
 
 ### Phaseek v1 Generation
 
@@ -338,9 +340,9 @@ For Phaseek v1, the relaxed amino-acid embeddings are passed through the frozen 
 
 For Phaseek v2, the relaxed embeddings are passed through the v2 Transformer together with FEGS graph matrices.
 
-FEGS matrices require a discrete sequence. They are therefore periodically reconstructed from the current argmax sequence and remain fixed between refresh steps.
+Because FEGS extraction requires a discrete sequence, the graph matrices are periodically reconstructed from the current argmax sequence and remain fixed between refresh steps.
 
-The final generated sequences are rescored using the standard Phaseek prediction pipeline.
+The final sequences are rescored using the standard Phaseek prediction workflow.
 
 ## Generation Parameters
 
@@ -400,7 +402,7 @@ RANDOM_SEED = 42
 NUMBER_OF_SEQUENCES = 3
 ```
 
-the optimization runs use:
+the runs use:
 
 ```text
 42
@@ -422,7 +424,7 @@ additional model evaluations.
 
 ## Generated Peptide Files
 
-Generated results are saved under:
+Generated results are saved under the selected generation directory. The default location is:
 
 ```text
 Functions/Results/Generated_peptides/
@@ -436,7 +438,7 @@ generated_peptides.fasta
 generation_settings.json
 ```
 
-Each generated sequence also has its own Phaseek result directory.
+Each generated sequence also receives its own Phaseek result folder.
 
 ## Repository Structure
 
@@ -464,7 +466,7 @@ Phaseek/
 
 Bug reports and feature requests can be submitted through GitHub Issues.
 
-Contributions, modified versions and redistribution are subject to the Phaseek license.
+Contributions, modified versions and redistribution are subject to the Phaseek license. Users should contact Inserm Transfert before distributing a contribution or modified version.
 
 ## License
 
@@ -472,13 +474,13 @@ Phaseek v2.0 is distributed under the:
 
 **Phaseek License – research purposes restricted**
 
-The full license is available in:
+The complete license is available in:
 
 [LICENSE.pdf](LICENSE.pdf)
 
 Use is restricted to academic and non-commercial research under the full terms of the license.
 
-Uses outside this scope require a separate agreement with Inserm Transfert.
+Uses outside the permitted scope require a separate agreement with Inserm Transfert.
 
 The software license does not grant rights under the associated patent.
 

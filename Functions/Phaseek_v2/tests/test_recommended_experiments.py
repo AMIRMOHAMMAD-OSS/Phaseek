@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from phaseek_v2.config import ModelConfig
-from phaseek_v2.model import LayerwiseHeadMixture, PhaseekV3Classifier
+from phaseek_v2.model import LayerwiseHeadMixture, PhaseekV2Classifier
 
 
 def small_batch(topk: int = 3):
@@ -31,7 +31,7 @@ def test_layerwise_mixture_shape_and_gradient():
         resid_pdrop=0.0,
         attn_pdrop=0.0,
     )
-    model = PhaseekV3Classifier(config)
+    model = PhaseekV2Classifier(config)
     assert isinstance(model.mixer, LayerwiseHeadMixture)
     tokens, matrices, labels = small_batch()
     logits, auxiliary = model(tokens, matrices)
@@ -50,7 +50,7 @@ def test_layerwise_mixture_shape_and_gradient():
 
 
 def test_graph_optimizer_group_has_lr_multiplier():
-    model = PhaseekV3Classifier(
+    model = PhaseekV2Classifier(
         ModelConfig(block_size=6, n_layer=2, n_head=2, n_embd=16, topk_m=3)
     )
     groups = model.optimizer_groups(0.01, base_lr=2e-4, graph_lr_multiplier=5.0)
@@ -65,7 +65,7 @@ def test_graph_optimizer_group_has_lr_multiplier():
 
 
 def test_backbone_freeze_keeps_graph_and_head_trainable():
-    model = PhaseekV3Classifier(
+    model = PhaseekV2Classifier(
         ModelConfig(block_size=6, n_layer=2, n_head=2, n_embd=16, topk_m=3)
     )
     model.set_backbone_frozen(True)

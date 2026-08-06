@@ -9,7 +9,7 @@ from phaseek_v2.trainer import train_model
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Train the corrected Phaseek v3 graph-biased transformer")
+    parser = argparse.ArgumentParser(description="Train the corrected Phaseek v2 graph-biased transformer")
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--resume", default=None)

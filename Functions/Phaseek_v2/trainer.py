@@ -22,7 +22,7 @@ from .config import (
 )
 from .data import make_loader, read_manifest
 from .metrics import compute_metrics, select_threshold
-from .model import PhaseekV3Classifier
+from .model import PhaseekV2Classifier
 from .tokenizer import tokenizer_metadata
 from .utils import (
     atomic_torch_save,

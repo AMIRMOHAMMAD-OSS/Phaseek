@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 ROOT = Path(__file__).resolve().parent
 V1_DIR = ROOT / "Phaseek_v1"
+XGB_DIR = ROOT / "XG_Boost"
 V2_DIR = ROOT / "Phaseek_v2"
 RESULTS_DIR = ROOT / "Results"
 
@@ -31,7 +32,7 @@ from phaseek_v2.tokenizer import encode_sequence
 warnings.filterwarnings("ignore")
 
 ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
-RUNNER_VERSION = "2026-08-06-verified-2"
+RUNNER_VERSION = "2026-08-06-current-repo-1"
 
 _V1_CLF = None
 _V1_MODEL = None
@@ -68,64 +69,58 @@ def load_v1():
     import importlib
     import random
 
-    module_dir = next(
-        (
-            candidate
-            for candidate in (V1_DIR, ROOT)
-            if (
-                (candidate / "classifier_fgs.py").is_file()
-                and (candidate / "XGBoost.py").is_file()
-            )
-        ),
-        None,
-    )
+    classifier_file = V1_DIR / "classifier_fgs.py"
+    config_file = V1_DIR / "Configue.py"
+    xgboost_file = next(XGB_DIR.rglob("XGBoost.py"), None)
+    fegs_file = ROOT / "FEGS_feature_extraction.py"
 
-    if module_dir is None:
+    required = [classifier_file, config_file, fegs_file]
+    if xgboost_file is not None:
+        required.append(xgboost_file)
+
+    missing = [str(path) for path in required if not path.is_file()]
+    if xgboost_file is None:
+        missing.append(str(XGB_DIR / "XGBoost.py"))
+
+    if missing:
         raise FileNotFoundError(
-            "Phaseek v1 files were not found. Expected classifier_fgs.py "
-            f"and XGBoost.py in {V1_DIR} or {ROOT}."
+            "Missing Phaseek v1 files:\n" + "\n".join(missing)
         )
 
-    model_locations = [
-        ROOT.parent / "model",
-        ROOT / "model",
-        V1_DIR / "model",
+    repository_model_dir = ROOT.parent / "model"
+    functions_model_dir = ROOT / "model"
+
+    if not repository_model_dir.is_dir():
+        raise FileNotFoundError(
+            f"Phaseek v1 model folder not found: {repository_model_dir}"
+        )
+
+    if functions_model_dir.is_symlink():
+        if functions_model_dir.resolve() != repository_model_dir.resolve():
+            functions_model_dir.unlink()
+            functions_model_dir.symlink_to(
+                repository_model_dir,
+                target_is_directory=True,
+            )
+    elif not functions_model_dir.exists():
+        functions_model_dir.symlink_to(
+            repository_model_dir,
+            target_is_directory=True,
+        )
+
+    xgboost_module_dir = xgboost_file.parent
+
+    import_paths = [
+        str(V1_DIR.resolve()),
+        str(xgboost_module_dir.resolve()),
+        str(ROOT.resolve()),
     ]
 
-    source_model_dir = next(
-        (
-            path
-            for path in model_locations
-            if path.is_dir() and any(path.iterdir())
-        ),
-        None,
-    )
+    for path in import_paths:
+        while path in sys.path:
+            sys.path.remove(path)
 
-    if source_model_dir is None:
-        raise FileNotFoundError(
-            "Phaseek v1 model assets were not found in any expected model folder."
-        )
-
-    source_model_dir = source_model_dir.resolve()
-
-    # Support both old path styles used by the v1 files:
-    # ../model relative to Functions and ../model relative to Phaseek_v1.
-    for alias in (ROOT.parent / "model", ROOT / "model"):
-        if alias.resolve() == source_model_dir:
-            continue
-
-        if alias.is_symlink():
-            alias.unlink()
-        elif alias.exists():
-            continue
-
-        alias.symlink_to(source_model_dir, target_is_directory=True)
-
-    module_path = str(module_dir.resolve())
-
-    while module_path in sys.path:
-        sys.path.remove(module_path)
-    sys.path.insert(0, module_path)
+    sys.path[:0] = import_paths
 
     for module_name in (
         "classifier_fgs",
@@ -135,18 +130,28 @@ def load_v1():
     ):
         sys.modules.pop(module_name, None)
 
+    with working_directory(ROOT):
+        classifier_module = importlib.import_module("classifier_fgs")
+        xgboost_module = importlib.import_module("XGBoost")
+
+    if Path(classifier_module.__file__).resolve() != classifier_file.resolve():
+        raise ImportError(
+            f"Wrong classifier_fgs loaded: {classifier_module.__file__}"
+        )
+
+    if Path(xgboost_module.__file__).resolve() != xgboost_file.resolve():
+        raise ImportError(
+            f"Wrong XGBoost loaded: {xgboost_module.__file__}"
+        )
+
     torch.manual_seed(0)
     np.random.seed(0)
     random.seed(0)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True
 
-    with working_directory(ROOT):
-        classifier_module = importlib.import_module("classifier_fgs")
-        xgboost_module = importlib.import_module("XGBoost")
-
-        _V1_CLF = xgboost_module.XGBoost.XGM()
-        _V1_MODEL = classifier_module.transformer("c")
+    _V1_CLF = xgboost_module.XGBoost.XGM()
+    _V1_MODEL = classifier_module.transformer("c")
 
     return _V1_CLF, _V1_MODEL
 

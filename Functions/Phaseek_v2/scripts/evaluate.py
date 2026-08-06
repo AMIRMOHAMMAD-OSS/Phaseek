@@ -6,10 +6,10 @@ from pathlib import Path
 
 import torch
 
-from phaseek_v3.config import TrainConfig
-from phaseek_v3.data import make_loader, read_manifest
-from phaseek_v3.trainer import evaluate_loader, load_model_from_checkpoint
-from phaseek_v3.utils import resolve_amp_dtype, setup_torch, write_json
+from phaseek_v2.config import TrainConfig
+from phaseek_v2.data import make_loader, read_manifest
+from phaseek_v2.trainer import evaluate_loader, load_model_from_checkpoint
+from phaseek_v2.utils import resolve_amp_dtype, setup_torch, write_json
 
 
 def main() -> None:

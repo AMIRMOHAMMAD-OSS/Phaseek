@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="Picture10.svg" alt="Phaseek logo" width="650">
+  <img src="Picture10.svg" alt="Phaseek logo" width="900">
+</p>
+
+<p align="center">
+  <strong>LLPS prediction and phase-separating peptide generation</strong>
 </p>
 
 <p align="center">
@@ -7,19 +11,14 @@
     <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in Colab">
   </a>
   <a href="https://huggingface.co/AmirMMH/Phaseek">
-    <img src="https://img.shields.io/badge/Hugging%20Face-Phaseek-FFD21E" alt="Hugging Face">
+    <img src="https://img.shields.io/badge/Hugging%20Face-Phaseek-FFD21E.svg" alt="Phaseek on Hugging Face">
   </a>
   <a href="https://www.biorxiv.org/content/10.1101/2025.01.27.635039v2">
-    <img src="https://img.shields.biorxiv.org/content/10.1101/2025.01.27.635039v2">
-    <img src="https://.io/badge/bioRxiv-Preprint-B31B1B" alt="bioRxiv preprint">
+    <img src="https://img.shields.io/badge/bioRxiv-10.1101%2F2025.01.27.635039-B31B1B.svg" alt="Phaseek bioRxiv preprint">
   </a>
   <a href="LICENSE.pdf">
-    <img src="https://img.shields.io/badge/License-Research%20Purposes%20Restricted-168ACD" alt="License">
+    <img src="https://img.shields.io/badge/License-Research%20Purposes%20Restricted-168ACD.svg" alt="Phaseek license">
   </a>
-</p>
-
-<p align="center">
-  <strong>LLPS prediction and phase-separating peptide generation</strong>
 </p>
 
 ---
@@ -44,12 +43,6 @@ Phaseek supports:
 - optional local sequence refinement
 - Google Colab execution
 
-## Links
-
-- [Run Phaseek in Google Colab](https://colab.research.google.com/github/AMIRMOHAMMAD-OSS/Phaseek/blob/main/phaseek_colab.ipynb)
-- [Phaseek on Hugging Face](https://huggingface.co/AmirMMH/Phaseek)
-- [Phaseek preprint on bioRxiv](https://www.biorxiv.org/content/10.1101/2025.01.27.635039v2)
-
 ## Model Architecture
 
 <p align="center">
@@ -58,7 +51,7 @@ Phaseek supports:
 
 Phaseek v2 combines a Transformer-based sequence encoder with FEGS graph matrices to calculate a sequence-level LLPS score.
 
-The prediction workflow also reports a residue-level LLPS profile and a final Phaseek score.
+The prediction pipeline also reports a residue-level LLPS profile and a final Phaseek score.
 
 ## Installation
 
@@ -93,7 +86,7 @@ Install the dependencies:
 pip install -r requirements.txt
 ```
 
-## Required Files
+## Required Model Files
 
 Phaseek v1 model files are stored in:
 
@@ -162,7 +155,7 @@ python Functions/runner.py \
   --aggregation mean
 ```
 
-`--end-sequence` limits the number of FASTA records processed. It does not truncate individual protein sequences.
+The `--end-sequence` option limits the number of FASTA records processed. It does not truncate individual protein sequences.
 
 ## CLI Arguments
 
@@ -175,7 +168,7 @@ python Functions/runner.py \
 | `--directory` | Parent directory created inside `Functions/Results`. |
 | `--end-sequence` | Maximum number of FASTA records to process. |
 | `--device` | Selects `auto`, `cpu`, or `cuda`. |
-| `--window-size` | Phaseek v2 inference-window length. |
+| `--window-size` | Maximum Phaseek v2 inference-window length. |
 | `--stride` | Distance between consecutive windows. |
 | `--aggregation` | Combines window scores using `mean` or `max`. |
 | `--checkpoint` | Optional path to a Phaseek v2 checkpoint. |
@@ -199,6 +192,23 @@ Window scores are combined using either:
 
 - `mean`
 - `max`
+
+## Scores
+
+For Phaseek v1, the pipeline reports:
+
+- raw Phaseek v1 score
+- residue-level LLPS profile
+- final Phaseek score
+
+For Phaseek v2, the pipeline reports:
+
+- raw Phaseek v2 score
+- residue-level LLPS profile
+- final Phaseek score
+- window-level scores when windowing is used
+
+The residue-level profile is currently generated using the Phaseek v1 residue-scoring procedure for both model options.
 
 ## Output Files
 
@@ -227,7 +237,16 @@ Contains the residue-level LLPS profile:
 
 ### `prediction.json`
 
-Contains the sequence identifier, selected model, sequence length, final score, raw model score, thresholds and window information.
+Contains information including:
+
+- sequence identifier
+- sequence length
+- selected model
+- final score
+- raw model score
+- score thresholds
+- window aggregation
+- number of windows
 
 ### `window_scores.csv`
 
@@ -240,7 +259,7 @@ For Phaseek v2, this file contains:
 | `end` | Last residue position |
 | `score` | Raw Phaseek v2 window score |
 
-For FASTA input, the combined table is saved as:
+For FASTA input, the combined output is saved as:
 
 ```text
 LLPS_prediction_of_seqs.csv
@@ -248,7 +267,7 @@ LLPS_prediction_of_seqs.csv
 
 ## Colab Workflow
 
-The Colab notebook includes sections for:
+The Phaseek Colab notebook includes sections for:
 
 1. installing Phaseek and its dependencies
 2. selecting Phaseek v1 or v2
@@ -268,69 +287,60 @@ Phaseek includes a SeqProp-inspired gradient-based method for generating sequenc
 
 A candidate sequence is represented as a trainable logit matrix:
 
-$$
-\theta \in \mathbb{R}^{L \times 20}
-$$
+```text
+theta has shape L x 20
+```
 
-Here, $L$ is the sequence length selected by the user.
+Here:
 
-The first position is fixed to methionine. The remaining positions are randomly initialized.
+- `L` is the sequence length selected by the user.
+- `20` represents the standard amino-acid alphabet.
 
-During optimization, the logits are converted into differentiable amino-acid probabilities:
+The first position is fixed to methionine. The remaining sequence logits are initialized randomly.
 
-$$
-P_{i,a}
-=
-\frac{
-\exp\left((\theta_{i,a}+\alpha_t G_{i,a})/\tau_t\right)
-}{
-\sum_{b=1}^{20}
-\exp\left((\theta_{i,b}+\alpha_t G_{i,b})/\tau_t\right)
-}
-$$
+During optimization, the logits are converted into differentiable amino-acid probabilities using a temperature-controlled Gumbel relaxation:
+
+```text
+P(i,a) = exp((theta(i,a) + alpha_t * G(i,a)) / tau_t)
+         ------------------------------------------------
+         sum over b of exp((theta(i,b) + alpha_t * G(i,b)) / tau_t)
+```
 
 where:
 
-- $G_{i,a}$ is Gumbel noise
-- $\tau_t$ is the temperature at step $t$
-- $\alpha_t$ is the Gumbel-noise scale
+- `G(i,a)` is Gumbel noise.
+- `tau_t` is the temperature at optimization step `t`.
+- `alpha_t` controls the magnitude of the noise.
 
-The probability matrix is projected into the model embedding space:
+The probability matrix is projected into the amino-acid embedding space:
 
-$$
-E = P W_{AA}
-$$
+```text
+E = P * W_AA
+```
 
-where $W_{AA}$ is the frozen amino-acid embedding matrix.
+`W_AA` is the frozen amino-acid embedding matrix of the selected Phaseek model.
 
 The sequence logits are optimized using:
 
-$$
-\mathcal{L}
-=
--S_{\mathrm{LLPS}}
-+
-\lambda H(P)
-$$
+```text
+Loss = -S_LLPS + lambda * H(P)
+```
 
 where:
 
-- $S_{\mathrm{LLPS}}$ is the differentiable model score
-- $H(P)$ is the entropy of the amino-acid probabilities
-- $\lambda$ is the entropy coefficient
+- `S_LLPS` is the differentiable model score.
+- `H(P)` is the entropy of the amino-acid probability matrix.
+- `lambda` is the entropy coefficient.
 
-Only the sequence logits are updated. The Phaseek model parameters remain frozen.
+Only the sequence logits are optimized. The trained Phaseek model parameters remain frozen.
 
-After optimization, the sequence is decoded using:
+After optimization, the final sequence is obtained using argmax decoding:
 
-$$
-s_i
-=
-\operatorname*{argmax}_{a}
-\theta_{i,a}
-$$
+```text
+s(i) = argmax over amino acids of theta(i,a)
+```
 
-An optional refinement step can test single-residue substitutions and retain substitutions that increase the selected model's raw score.
+An optional refinement step tests single-residue substitutions and retains substitutions that improve the selected model's raw score.
 
 ### Phaseek v1 Generation
 
@@ -338,11 +348,13 @@ For Phaseek v1, the relaxed amino-acid embeddings are passed through the frozen 
 
 ### Phaseek v2 Generation
 
-For Phaseek v2, the relaxed embeddings are passed through the v2 Transformer together with FEGS graph matrices.
+For Phaseek v2, the relaxed amino-acid embeddings are passed through the v2 Transformer together with FEGS graph matrices.
 
-Because FEGS extraction requires a discrete sequence, the graph matrices are periodically reconstructed from the current argmax sequence and remain fixed between refresh steps.
+FEGS extraction requires a discrete amino-acid sequence. The matrices are therefore periodically reconstructed from the current argmax sequence and remain fixed between refresh steps.
 
-The final sequences are rescored using the standard Phaseek prediction workflow.
+Gradients pass through the relaxed amino-acid embedding branch but not through the FEGS extraction process.
+
+Final generated sequences are rescored using the normal selected Phaseek prediction pipeline.
 
 ## Generation Parameters
 
@@ -351,7 +363,7 @@ The final sequences are rescored using the standard Phaseek prediction workflow.
 | `MODEL_VERSION` | `v2` | Selects Phaseek v1 or v2. |
 | `SEQUENCE_LENGTH` | `120` | Length of each generated sequence. |
 | `NUMBER_OF_SEQUENCES` | `3` | Number of independent optimization runs. |
-| `RANDOM_SEED` | `42` | Controls initialization and Gumbel noise. Consecutive runs use consecutive seeds. |
+| `RANDOM_SEED` | `42` | Controls initialization and Gumbel-noise sampling. |
 | `GRADIENT_STEPS` | `500` | Number of Adam optimization steps. |
 | `LEARNING_RATE` | `0.1` | Adam learning rate for the sequence logits. |
 | `ENTROPY_WEIGHT` | `0.001` | Weight of the entropy penalty. |
@@ -367,31 +379,17 @@ The final sequences are rescored using the standard Phaseek prediction workflow.
 
 The temperature is decreased linearly:
 
-$$
-\tau_t
-=
-\tau_{\mathrm{start}}
-+
-\frac{t}{N-1}
-\left(
-\tau_{\mathrm{end}}
--
-\tau_{\mathrm{start}}
-\right)
-$$
+```text
+tau_t = tau_start + (t / (N - 1)) * (tau_end - tau_start)
+```
 
 ### Gumbel-Noise Annealing
 
 The Gumbel-noise scale is decreased toward zero:
 
-$$
-\alpha_t
-=
-\alpha_{\mathrm{start}}
-\left(
-1-\frac{t}{N-1}
-\right)
-$$
+```text
+alpha_t = alpha_start * (1 - t / (N - 1))
+```
 
 ### Random Seeds
 
@@ -402,7 +400,7 @@ RANDOM_SEED = 42
 NUMBER_OF_SEQUENCES = 3
 ```
 
-the runs use:
+the optimization runs use:
 
 ```text
 42
@@ -412,15 +410,9 @@ the runs use:
 
 ### Local Refinement
 
-When refinement is enabled, positions after the fixed methionine are tested with alternative amino acids.
+When refinement is enabled, each position after the initial methionine is tested with alternative amino acids.
 
-One refinement pass may require up to:
-
-$$
-19(L-1)
-$$
-
-additional model evaluations.
+Only substitutions that improve the selected model's raw score are retained.
 
 ## Generated Peptide Files
 
@@ -466,7 +458,9 @@ Phaseek/
 
 Bug reports and feature requests can be submitted through GitHub Issues.
 
-Contributions, modified versions and redistribution are subject to the Phaseek license. Users should contact Inserm Transfert before distributing a contribution or modified version.
+Contributions, modified versions and redistribution are subject to the Phaseek license.
+
+Before distributing a contribution or modified version, users should contact Inserm Transfert.
 
 ## License
 
@@ -474,7 +468,7 @@ Phaseek v2.0 is distributed under the:
 
 **Phaseek License – research purposes restricted**
 
-The complete license is available in:
+The complete license is available here:
 
 [LICENSE.pdf](LICENSE.pdf)
 

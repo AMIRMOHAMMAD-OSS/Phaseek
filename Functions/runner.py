@@ -32,7 +32,7 @@ from phaseek_v2.tokenizer import encode_sequence
 warnings.filterwarnings("ignore")
 
 ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
-RUNNER_VERSION = "2026-08-06-current-repo-1"
+RUNNER_VERSION = "2026-08-06-v2-xgboost-1"
 
 _V1_CLF = None
 _V1_MODEL = None
@@ -221,7 +221,10 @@ def adjust_residue_score(value, sequence_score):
     return value
 
 
-def score_v1_sequence(sequence: str):
+def score_v1_sequence(
+    sequence: str,
+    sequence_score_override: float | None = None,
+):
     clf, model = load_v1()
 
     length = len(sequence)
@@ -250,12 +253,18 @@ def score_v1_sequence(sequence: str):
             dtype=float,
         ).reshape(-1)
 
-    raw_sequence_score = np.asarray(
-        model.predict_proba([sequence]),
-        dtype=float,
-    ).reshape(-1)
+    raw_v1_score = float(
+        np.asarray(
+            model.predict_proba([sequence]),
+            dtype=float,
+        ).reshape(-1)[0]
+    )
 
-    sequence_score = float(raw_sequence_score[0])
+    sequence_score = (
+        raw_v1_score
+        if sequence_score_override is None
+        else float(sequence_score_override)
+    )
 
     residue_scores = [
         adjust_residue_score(
@@ -276,7 +285,7 @@ def score_v1_sequence(sequence: str):
         clf,
     )
 
-    return float(final_score), residue_scores
+    return float(final_score), residue_scores, raw_v1_score
 
 
 def resolve_device(device_name: str):
@@ -462,22 +471,32 @@ def score_one(
 ):
     sequence = clean_sequence(sequence)
 
-    v1_score, residue_scores = score_v1_sequence(sequence)
-
     if model_version == "v2":
-        global_score, threshold, window_results = score_v2_sequence(
+        raw_model_score, raw_model_threshold, window_results = (
+            score_v2_sequence(
+                sequence,
+                checkpoint_path=checkpoint_path,
+                m_mat_path=m_mat_path,
+                device_name=device_name,
+                window_size=window_size,
+                stride=stride,
+                aggregation=aggregation,
+            )
+        )
+
+        global_score, residue_scores, raw_v1_score = score_v1_sequence(
             sequence,
-            checkpoint_path=checkpoint_path,
-            m_mat_path=m_mat_path,
-            device_name=device_name,
-            window_size=window_size,
-            stride=stride,
-            aggregation=aggregation,
+            sequence_score_override=raw_model_score,
         )
     else:
-        global_score = v1_score
-        threshold = 0.5
+        global_score, residue_scores, raw_v1_score = score_v1_sequence(
+            sequence
+        )
+        raw_model_score = raw_v1_score
+        raw_model_threshold = 0.5
         window_results = []
+
+    threshold = 0.5
 
     output_dir = result_directory(directory, sample_id)
 
@@ -501,8 +520,14 @@ def score_one(
         "score": float(global_score),
         "threshold": float(threshold),
         "prediction": int(global_score >= threshold),
+        "raw_model_score": float(raw_model_score),
+        "raw_model_threshold": float(raw_model_threshold),
+        "raw_model_prediction": int(
+            raw_model_score >= raw_model_threshold
+        ),
+        "raw_v1_score": float(raw_v1_score),
+        "xgboost_applied": True,
         "residue_level_model": "v1",
-        "v1_score": float(v1_score),
         "window_aggregation": (
             aggregation if model_version == "v2" else None
         ),
@@ -605,6 +630,14 @@ def main():
                         "LLPS_score": summary["score"],
                         "prediction": summary["prediction"],
                         "threshold": summary["threshold"],
+                        "raw_model_score": summary["raw_model_score"],
+                        "raw_model_threshold": summary[
+                            "raw_model_threshold"
+                        ],
+                        "raw_model_prediction": summary[
+                            "raw_model_prediction"
+                        ],
+                        "xgboost_applied": True,
                         "Residue-level score": json.dumps(
                             residue_scores
                         ),

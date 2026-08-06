@@ -1,6 +1,6 @@
 import pandas as pd
 
-from phaseek_v3.manifest import assign_grouped_splits
+from phaseek_v2.manifest import assign_grouped_splits
 
 
 def test_grouped_split_has_no_leakage_and_both_classes():

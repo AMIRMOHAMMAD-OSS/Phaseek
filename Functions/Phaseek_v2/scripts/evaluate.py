@@ -13,7 +13,7 @@ from phaseek_v2.utils import resolve_amp_dtype, setup_torch, write_json
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Evaluate a Phaseek v3 checkpoint")
+    parser = argparse.ArgumentParser(description="Evaluate a Phaseek v2 checkpoint")
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--split", choices=["val", "test"], default="test")

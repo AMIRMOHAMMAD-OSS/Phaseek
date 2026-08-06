@@ -1,6 +1,6 @@
 import numpy as np
 
-from phaseek_v3.fegs_fast import FastFEGSExtractor
+from phaseek_v2.fegs_fast import FastFEGSExtractor
 
 
 def test_linear_dpc_has_no_wraparound():

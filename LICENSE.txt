@@ -1,0 +1,166 @@
+Phaseek License – research purposes restricted 
+BETWEEN:  
+Inserm Transfert SA, a limited company organized under the laws of France, whose registered 
+headquarters are located at PariSanté Campus, 10 rue d’Oradour sur Glane, 75015 Paris, France, 
+registered under the number 434 033 619 at the Paris Trade and Companies Registry,  
+Represented by Mrs. Pascale Augé in her capacity of Chairman of the Executive Management Board 
+(Présidente du Directoire), duly authorized,  
+hereinafter referred to as “Inserm Transfert” or the "Licensor", 
+Inserm Transfert SA is acting in the names and on behalf of the French public entities that co-own the 
+Software and the Patent:  
+Acting as delegatee of the French National Institute of Health and Medical Research (Institut National 
+de la Santé et de la Recherche Médicale – hereinafter “Inserm”), a public scientific and technological 
+institute, having its registered headquarters at 101 rue de Tolbiac, 75013 Paris, France, and 
+Acting in the names and on behalf of the following public entities for the purposes of this agreement:  - - 
+SORBONNE UNIVERSITE, a scientific, cultural and professional French public establishment, 
+having its registered office at 21 rue de l’Ecole de Médecine, 75006 Paris, France (hereinafter 
+SORBONNE UNIVERSITY), and, 
+CENTRE NATIONAL DE LA RECHERCHE SCIENTIFIQUE, an administrative French public 
+establishment, having its registered office at 3 rue Michel-Ange 75016 PARIS France 
+(hereinafter CNRS). 
+Inserm, SORBONNE UNIVERSITY and CNRS (hereinafter referred as to the “Co-rights holders”).  
+AND  
+Any end-user - natural or legal person - using the software subject to this license within the strict frame 
+of its academical / scientific researches, without any commercial objective,   
+hereinafter referred to as the "Licensee", 
+The Licensor and the Licensee are individually referred to as the “Party” and collectively referred to as 
+the “Parties”. 
+PREAMBLE 
+Phaseek is a sequence-based computational tool for liquid–liquid phase separation (LLPS). It has two 
+distinct capabilities: (i) prediction: scoring amino-acid sequences for their propensity to undergo phase 
+separation and identifying the residue-level regions that drive it; and (ii) generation: designing de novo 
+peptide sequences predicted to phase-separate. 
+Inserm Transfert has been appointed to represent the Co-rights holders in their actions to protect the 
+Phaseek software and carry out the associated formalities. 
+Inserm Transfert has therefore registered, on behalf of the Co-rights holders, the patent associated 
+with the device of which Phaseek is a part. 
+On behalf of the Co-rights holders, Inserm Transfert makes the Phaseek software available to any user 
+wishing to use it for strictly academic research purposes, without any commercial objectives or 
+perspectives.  
+This license agreement is intended to govern the terms and conditions of the Phaseek software license 
+to which all users are subject, within the framework of the above-mentioned purposes. Any other use 
+is strictly forbidden by the present license and requires a specific agreement with Inserm Transfert. 
+Any person intending to use the Phaseek  software must first read the present agreement.  
+Any downloading and/or use of the Phaseek software acknowledges acceptance of and compliance 
+with these license conditions. 
+ARTICLE 1 – DEFINITIONS 
+Unless the context clearly indicates otherwise, the terms starting with a capital letter are defined as 
+follows, it being understood that words in plural may be understood in singular and vice versa. - 
+“Agreement”: the present document, governing the relationship between the Parties with 
+regard to the Software. The Preamble is part of the Agreement. - - - - - 
+"Code": Source code and/or Object code. 
+"Contribution(s)": any work made by a Licensee that includes or is based on the Software 
+in a manner that permission of the Licensor is needed for use or disclosure of the such work. 
+"Contributors": any Licensee releasing a Contribution. 
+"License": the present terms and conditions for the use and reproduction of the Software. 
+“Non-Commercial Research”: use for research purposes only and not for the purpose of 
+obtaining, directly or indirectly, any commercial advantage or financial compensation.  
+The following acts are not considered Non-Commercial Research notably and are not allowed 
+under the License: - use in clinical trials, - use for diagnostic and therapeutic purposes, - use for rendering a research service for a fee, even if the said fee is merely 
+reimbursement of the costs of rendering the service, - use in projects and collaborative research with for-profit organizations, - use in a product or as part of a product to be sold, 
+- use for developing, creating and marketing or improving a product or process for 
+commercial and/or industrial purposes,  - file a patent covering the Software in order to generate a revenue. - - - - - 
+"Object code" or the “Binary code”: shall mean the binary files originating from the 
+compilation of the Source Code. 
+"Patent": patent application EP26300824.5 filed on 24 July 2026, title: “COMPUTER 
+IMPLEMENTED METHOD OF GENERATING LIQUID-LIQUID PHASE SEPARATION PEPTIDES” and 
+any foreign patent application corresponding thereto, and any divisional, additions, 
+continuations, continuations in part, or re-examination application, and each patent that issues 
+or reissues from any of these patent applications. 
+"Software": the Phaseek software, version 2.0, including the Object Code, the Source Code, 
+the trained models and model weights, the user interface, the graphical interface and the 
+related documentation (“Documentation”).  
+"Source Code": all the Software's instructions and program lines to which access is required so 
+as to modify the Software. 
+"Territory": worldwide. 
+ARTICLE 2 – PURPOSE 
+The purpose of this License is to set out the terms and conditions under which the Licensor grants any 
+Licensee a License to use the Software, for performing Non-Commercial Research only. 
+Should the Licensee wish to obtain further rights on the Software (other than for performing Non
+Commercial Research), it may contact Inserm Transfert at the address set out in Article “Contacts” 
+hereunder to discuss the possible execution of a specific license agreement. 
+ARTICLE 3 – SCOPE OF RIGHTS GRANTED 
+3.1 Property of the Software and the Patent  
+The Software and the Patent are the sole property of the Co-right holders. 
+3.2. Software - Rights of use  
+For the duration of the Agreement, the Licensor grants to the Licensee a non-exclusive, non
+transferable, worldwide, free of charge and non-sublicensable license to :  - use the Software; - reproduce, permanently or temporarily, the Software in order to load, display, run, transmit or store 
+the Software on any media and by any means; - study the Software, 
+- modify, adapt and arrange the Software, generating Contributions.   
+These rights are only granted to the Licensee in order to perform Non-Commercial Research. 
+In its use of the Software, the Licensee commits to maintain any notice or proprietary mark reminding 
+the property of the Software and the Co-rights holders. 
+For the avoidance of doubt, under this License, the Licensee is not allowed:  -  to use the Software or parts thereof to create an own comparable control software or to integrate 
+the Software or parts thereof into own comparable control software. 
+3.3 Patents – no rights 
+The method that is implemented by the Software is protected by the Patent.  
+For the avoidance of doubt, the License does not give any rights on the Patent owned by the Co-rights 
+holders.  
+ARTICLE 4. DISTRIBUTION 
+The Licensee is not authorized to distribute copies of the Software in Source Code or Object Code form. 
+When the Licensee creates a Contribution, it shall  contact the Licensor (addresses provided in article 
+"Contacts” hereunder) in order to determine whether and under which conditions such Contribution 
+may be distributed.  
+ARTICLE 5. CONFIDENTIALITY 
+The Licensee undertakes to keep secret and confidential all information, of whatever nature, relating 
+to the Software and/or the Licensor to which it may have access through the performance of this 
+Agreement. 
+Information already available in the public domain or developed by the Licensee without breach of this 
+Agreement is not concerned by this article. 
+ARTICLE 6. NAMES OF THE AUTHORS / TRADEMARKS 
+This License does not grant the Licensee permission to use the names, trademarks, service marks, or 
+product names of the Licensor, except as required for reasonable and customary use in describing the 
+origin of the Software and reproducing the content of this License, README and Notice files. 
+ARTICLE 7. NO WARRANTIES  
+Unless required by applicable law or agreed to in writing, the Licensor provides the Software on an “AS 
+IS” BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied, including, 
+without limitation, any warranties or conditions of title, non-infringement, or fitness for a particular 
+purpose. 
+Any Licensee is solely responsible for determining the appropriateness of using the Software, and 
+assumes any risk associated with the said use and redistribution. 
+In no event and under no legal theory, whether in tort (including negligence), contract, or otherwise, 
+unless required by applicable law (such as deliberate and grossly negligent acts), or agreed to in writing, 
+shall the Licensor be liable to any Licensee for damages, including any direct, indirect, special, 
+incidental, or consequential damages of any character arising as a result of this License or out of the 
+use or inability to use the Software (including but not limited to damages for loss of goodwill, work 
+stoppage, computer failure or malfunction), even if the Licensor has been advised of the possibility of 
+such damages. 
+ARTICLE 8. LIABILITY  
+Any use of the Software by the Licensee that exceeds the scope of the granted rights or that violates 
+any term of the Agreement constitutes a breach of the Licensee. 
+This may immediately and automatically terminate the Agreement, without prejudice to any damages 
+and interest that may be claimed by the Licensor, as indemnification. 
+ARTICLE 9. DURATION AND TERMINATION 
+The License enters into force when the Licensee downloads the Software.  
+The License shall terminate at the same time the copyrights related to the Software terminate. 
+However, in the event of a breach by the Licensee of its obligations herein described, the rights granted 
+to the Licensee will automatically terminate. Termination shall not release the Parties from any 
+obligations arising from this Agreement prior to the date of effectiveness of the termination. 
+Regardless of the reason of the termination of the Agreement, the Licensee shall erase the Software 
+from all of its digital equipment immediately and cease to use it without delay.  
+Any obligation that, by its nature or by its identification, is intended to last beyond the termination of 
+the Agreement, will survive its term. 
+ARTICLE 10. APPLICABLE LAW AND DISPUTE RESOLUTION 
+The License is governed by French law. Should a difficulty or dispute arise in connection with the 
+License, the Parties agree to first seek an amicable solution between them.  
+If the Parties are unable to find an amicable solution within two (2) months as from the occurrence of 
+any dispute, and unless emergency proceedings are necessary, the disagreements or disputes shall be 
+referred to the Paris Courts having jurisdiction, by the more diligent Party. 
+ARTICLE 11. MISCELLANEOUS 
+This Agreement constitutes the complete understanding between the Parties regarding the Software. 
+All previous agreements between the Parties with regard to the Software are replaced by the present 
+Agreement.  
+The titles of the articles of the Agreement are provided for convenience of reference only and shall not 
+affect the interpretation of the Agreement. 
+Moreover, if individual provisions of the Agreement are ineffective, then this shall not affect the 
+effectiveness of the remaining terms. However, the ineffective provision shall be deemed to be 
+replaced by an effective provision, which is as close as possible to the commercially desired purpose of 
+the ineffective provision; the same shall apply in the case of a gap. 
+ARTICLE 12. CONTACTS 
+For any question relating to the interpretation or execution of the Agreement or for any plan to use the 
+Software in circumstances not covered by the Agreement, please contact: 
+contrats_IT@inserm-transfert.fr, 
+licensing@inserm-transfert.fr, 
+propriete@inserm-transfert.fr 
+END OF TERMS AND CONDITIONS 
+jur@inserm-transfert.fr; 

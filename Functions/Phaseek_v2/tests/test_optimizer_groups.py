@@ -1,5 +1,5 @@
-from phaseek_v3.config import ModelConfig
-from phaseek_v3.model import PhaseekV3Classifier
+from phaseek_v2.config import ModelConfig
+from phaseek_v2.model import PhaseekV3Classifier
 
 
 def test_graph_parameters_are_not_weight_decayed_and_have_own_group():
